@@ -13,8 +13,8 @@
 struct proc_dir_entry *proc_directory, *proc_file;
 
 static struct file_operations mp1_fops = {
-    .read = read_proc,
-    .write = write_proc
+    // .read = read_proc,
+    // .write = write_proc
 };
 
 /*
