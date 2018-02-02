@@ -20,7 +20,7 @@ static struct file_operations mp1_fops = {
 /*
 initial module, create Proc Filesystem entries(i.e /proc/mp1/ and /proc/mp1/status)
 */
-static int __int mp1_init(void) {
+int init_module(void) {
     // create entry for directory
     proc_directory = proc_mkdir(DIRECTORY, NULL);
     if (!proc_directory) {
@@ -39,10 +39,7 @@ static int __int mp1_init(void) {
     return 0;
 }
 
-static void __exit mp1_exit(void) {
+void cleanup_module(void) {
     remove_proc_entry(FILE, proc_directory);
     remove_proc_entry(DIRECTORY, NULL);
 }
-
-module_init(mp1_init);
-module_exit(mp1_exit);
