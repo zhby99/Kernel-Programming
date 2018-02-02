@@ -29,13 +29,12 @@ int init_module(void) {
         return -ENOMEM;
     }
     // create entry for FILE
-    proc_file = create_proc_entry(FILE, 0666, proc_directory);
+    proc_file = proc_create(FILE, 0666, proc_directory, &mp1_fops);
     if (!proc_file) {
         remove_proc_entry(FILE, proc_directory);
         printk(KERN_ALERT "Error: Could not initialize /proc/%s/%s\n", DIRECTORY, FILE);
         return -ENOMEM;
     }
-    proc_file->proc_fops = &mp1_fops;
     return 0;
 }
 
