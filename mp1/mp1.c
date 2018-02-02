@@ -2,9 +2,10 @@
 
 */
 
-#include <linux/module.h>	/* Specifically, a module */
-#include <linux/kernel.h>	/* We're doing kernel work */
-#include <linux/proc_fs.h>	/* Necessary because we use the proc fs */
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/proc_fs.h>
 
 #define DIRECTORY   "mp1"
 #define FILE        "status"
