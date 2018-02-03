@@ -36,26 +36,20 @@ LIST_HEAD(mp1_list);
 
 struct proc_dir_entry *proc_directory, *proc_file;
 
-static struct file_operations mp1_fops = {
-    .read = read_proc,
-    .write = write_proc
-};
-
 // The following 2 methods copied from http://tldp.org/LDP/lkmpg/2.6/html/x769.html;
-
 /**
  * The function is called when /proc file is read
  */
- int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
-     procfs_buffer_size = 0;
-     process_list *tmp;
-     list_for_each_entry(tmp, &mp1_list, list) {
-         procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, 0);
-     }
-     procfs_buffer[procfs_buffer_size] = '\0';
-     copy_to_user(buf, procfs_buffer, procfs_buffer_size);
-     return procfs_buffer_size;
- }
+int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
+    procfs_buffer_size = 0;
+    process_list *tmp;
+    list_for_each_entry(tmp, &mp1_list, list) {
+        procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, 0);
+    }
+    procfs_buffer[procfs_buffer_size] = '\0';
+    copy_to_user(buf, procfs_buffer, procfs_buffer_size);
+    return procfs_buffer_size;
+}
 
 /**
  * This function is called with the /proc file is written
@@ -70,6 +64,13 @@ int write_proc(struct file *filp,const char *buf, size_t count, loff_t *offp){
     list_add(&(tmp->list), &mp1_list);
     return count;
 }
+
+static struct file_operations mp1_fops = {
+    .read = read_proc,
+    .write = write_proc
+};
+
+
 
 
 /*
