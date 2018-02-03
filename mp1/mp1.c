@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/list.h>
+#include <asm/uaccess.h>	/* for copy_from_user */
 
 #define DIRECTORY   "mp1"
 #define FILE        "status"
