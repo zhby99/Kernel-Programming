@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/list.h>
 
@@ -15,7 +16,7 @@
 /**
  * The buffer used to store character for this module
  */
-static char procfs_buffer[PROCFS_MAX_SIZE];
+static char procfs_buffer[_MAX_SIZE];
 
 /**
  * The size of the buffer
