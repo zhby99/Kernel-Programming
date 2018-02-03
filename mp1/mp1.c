@@ -31,6 +31,8 @@ typedef struct {
     unsigned long cpu_time;
 } process_list;
 
+LIST_HEAD(mp1_list);
+
 struct proc_dir_entry *proc_directory, *proc_file;
 
 static struct file_operations mp1_fops = {
@@ -43,40 +45,28 @@ static struct file_operations mp1_fops = {
 /**
  * The function is called when /proc file is read
  */
-int read_proc(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
-	int ret;
-	printk(KERN_INFO "read_proc (/proc/%s/%s) called\n", DIRECTORY, FILE);
-	if (offset > 0) {
-		/* we have finished to read, return 0 */
-		ret  = 0;
-	} else {
-		//memcpy(buffer, procfs_buffer, procfs_buffer_size);
-        copy_to_user(buffer, buf, copied);
-		ret = procfs_buffer_size;
-	}
-
-	return ret;
-}
+ int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
+     procfs_buffer_size = 0;
+     process_list *tmp;
+     list_for_each_entry(tmp, &mp1_list, list) {
+         procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, 0);
+     }
+     procfs_buffer[procfs_buffer_size] = '\0';
+     copy_to_user(buf, procfs_buffer, procfs_buffer_size);
+     return procfs_buffer_size;
+ }
 
 /**
  * This function is called with the /proc file is written
  */
-int read_proc(struct file *filp,char *buf,size_t count,loff_t *offp ) {
-    if(count>temp){
-        count=temp;
-    }
-    temp=temp-count;
-    copy_to_user(buf,msg, count);
-    if(count==0){
-        temp=len;
-    }
-    return count;
-}
-
-int write_proc(struct file *filp,const char *buf,size_t count,loff_t *offp){
-    copy_from_user(msg,buf,count);
-    len=count;
-    temp=len;
+int write_proc(struct file *filp,const char *buf, size_t count, loff_t *offp){
+    process_list *tmp = kmalloc(sizeof(process_list), GFP_KERNEL);
+    INIT_LIST_HEAD(&(tmp->list));
+    copy_from_user(procfs_buffer, buf, count);
+    procfs_buffer[count] = '\0';
+    sscanf(buf, "%u", &tmp->pid);
+    tmp->cpu_time = 0;
+    list_add(&(tmp->list), &mp1_list);
     return count;
 }
 
