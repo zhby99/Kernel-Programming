@@ -13,18 +13,11 @@ void register_process(unsigned int pid){
 }
 
 int main(int argc, char* argv[]){
-    int expire = 10;
-    time_t start_time = time(NULL);
-
-    if (argc == 2) {
-        expire = atoi(argv[1]);
-    }
-
+    int total = 25;
+    time_t start = time(NULL);
     register_process(getpid());
-
-    // break out the while loop if the time is expired
     while (1) {
-        if ((int)(time(NULL) - start_time) > expire) {
+        if ((int)(time(NULL) - start) > total) {
             break;
         }
     }

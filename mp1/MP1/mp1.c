@@ -61,11 +61,11 @@ int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
     unsigned long flag;
     procfs_buffer_size = 0;
     process_list *tmp;
-    //spin_lock_irqsave(&my_lock, flag);
+    spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry(tmp, &mp1_list, list) {
         procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
     }
-    //spin_unlock_irqrestore(&my_lock, flag);
+    spin_unlock_irqrestore(&my_lock, flag);
     procfs_buffer[procfs_buffer_size] = '\0';
     copy_to_user(buf, procfs_buffer, procfs_buffer_size);
     return procfs_buffer_size;
@@ -82,9 +82,9 @@ int write_proc(struct file *filp,const char *buf, size_t count, loff_t *offp){
     procfs_buffer[count] = '\0';
     sscanf(buf, "%u", &tmp->pid);
     tmp->cpu_time = 0;
-    //spin_lock_irqsave(&my_lock, flag);
+    spin_lock_irqsave(&my_lock, flag);
     list_add(&(tmp->list), &mp1_list);
-    //spin_unlock_irqrestore(&my_lock, flag);
+    spin_unlock_irqrestore(&my_lock, flag);
     return count;
 }
 
@@ -101,7 +101,7 @@ void my_timer_callback(unsigned long data)
 static void my_work_function(struct work_struct *work){
     unsigned long flag;
     process_list *cur, *n;
-    //spin_lock_irqsave(&my_lock, flag);
+    spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry_safe(cur, n, &mp1_list, list) {
         int res = get_cpu_use(cur->pid, &cur->cpu_time);
         if (res == -1) {
@@ -109,7 +109,7 @@ static void my_work_function(struct work_struct *work){
             kfree(cur);
         }
     }
-    //spin_unlock_irqrestore(&my_lock, flag);
+    spin_unlock_irqrestore(&my_lock, flag);
     mod_timer(&my_timer, jiffies + msecs_to_jiffies(T_INTERVAL));
 }
 
@@ -140,7 +140,7 @@ int __init mp1_init(void)
    mod_timer(&my_timer, jiffies + msecs_to_jiffies(T_INTERVAL));
 
    my_wq = create_workqueue("my_queue");
-   //spin_lock_init(&my_lock);
+   spin_lock_init(&my_lock);
    my_work = (struct work_struct *)kmalloc(sizeof(struct work_struct), GFP_KERNEL);
    INIT_WORK(my_work, my_work_function);
 
