@@ -57,7 +57,7 @@ struct proc_dir_entry *proc_directory, *proc_file;
 /**
  * The function is called when /proc file is read
  */
-int read_proc(struct file *file ,char *buffer, size_t count, loff_t *offp ) {
+static ssize_t read_proc(struct file *file ,char *buffer, size_t count, loff_t *offp ) {
     unsigned long flag;
     procfs_buffer_size = 0;
     process_list *tmp;
@@ -70,23 +70,26 @@ int read_proc(struct file *file ,char *buffer, size_t count, loff_t *offp ) {
     spin_unlock_irqrestore(&my_lock, flag);
     buf[procfs_buffer_size] = '\0';
     copy_to_user(buffer, buf, procfs_buffer_size);
+    kfree(buf);
     return procfs_buffer_size;
 }
 
 /**
  * This function is called with the /proc file is written
  */
-int write_proc(struct file *filp,const char *buf, size_t count, loff_t *offp){
+static ssize_t write_proc(struct file *filp,const char *buffer, size_t count, loff_t *offp){
     unsigned long flag;
     process_list *tmp = kmalloc(sizeof(process_list), GFP_KERNEL);
     INIT_LIST_HEAD(&(tmp->list));
-    copy_from_user(procfs_buffer, buf, count);
-    procfs_buffer[count] = '\0';
+    char *buf = (char *)kmalloc(count + 1, GFP_KERNEL);
+    copy_from_user(buf, buffer, count);
+    buf[count] = '\0';
     sscanf(buf, "%u", &tmp->pid);
     tmp->cpu_time = 0;
     spin_lock_irqsave(&my_lock, flag);
     list_add(&(tmp->list), &mp1_list);
     spin_unlock_irqrestore(&my_lock, flag);
+    kfree(buf);
     return count;
 }
 
