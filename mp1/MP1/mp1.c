@@ -95,7 +95,7 @@ static struct file_operations mp1_fops = {
 
 void my_timer_callback(unsigned long data)
 {
-    queue_work(my_workqueue, my_work);
+    queue_work(my_wq, my_work);
 }
 
 static void my_work_function(struct work_struct *work)
@@ -110,7 +110,7 @@ static void my_work_function(struct work_struct *work)
         }
     }
     spin_unlock_irqrestore(&my_lock, flag);
-    mod_timer(&mp1_timer, jiffies + msecs_to_jiffies(TIMEINTERVAL));
+    mod_timer(&my_timer, jiffies + msecs_to_jiffies(T_INTERVAL));
 }
 
 
