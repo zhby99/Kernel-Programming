@@ -11,6 +11,8 @@ all: clean modules app
 
 obj-m:= mp1.o
 
+mp1-objs = BZHANG70_MP1.o
+
 modules:
 	$(MAKE) -C $(KERNEL_SRC) M=$(SUBDIR) modules
 
