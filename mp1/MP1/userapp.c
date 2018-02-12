@@ -9,6 +9,7 @@ void register_process(unsigned int pid){
     char command[256];
     memset(command, 0, 256);
     sprintf(command, "echo %u > /proc/mp1/status", pid);
+    printf("finish copy!\n");
     system(command);
 }
 
@@ -22,12 +23,7 @@ int main(int argc, char* argv[]){
 
     register_process(getpid());
 
-    // break out the while loop if the time is expired
-    while (1) {
-        if ((int)(time(NULL) - start_time) > expire) {
-            break;
-        }
-    }
+    sleep(expire);
 
 	return 0;
 }
