@@ -108,7 +108,7 @@ static void my_work_function(struct work_struct *work)
             list_del(&tmp->list);
             kfree(tmp);
         } else {
-            kprintf("cpu time: %u!\n", tmp->cpu_time);
+            printf("cpu time: %u!\n", tmp->cpu_time);
         }
     }
     spin_unlock_irqrestore(&my_lock, flag);
