@@ -99,14 +99,14 @@ void my_timer_callback(unsigned long data)
 }
 
 static void my_work_function(struct work_struct *work){
-    printk(KERN_ALERT "Entered Work!\n");
     unsigned long flag;
-    process_list *tmp, *n;
+    process_list *cur, *n;
     //spin_lock_irqsave(&my_lock, flag);
-    list_for_each_entry_safe(tmp, n, &mp1_list, list) {
-        if (get_cpu_use(tmp->pid, &tmp->cpu_time) == -1) {
-            list_del(&tmp->list);
-            kfree(tmp);
+    list_for_each_entry_safe(cur, n, &mp1_list, list) {
+        int res = get_cpu_use(cur->pid, &cur->cpu_time);
+        if (res == -1) {
+            list_del(&cur->list);
+            kfree(cur);
         }
     }
     //spin_unlock_irqrestore(&my_lock, flag);
@@ -121,7 +121,6 @@ int __init mp1_init(void)
    #ifdef DEBUG
    printk(KERN_ALERT "MP1 MODULE LOADING\n");
    #endif
-   printk(KERN_ALERT "MP1 MODULE LOADING\n");
    // Insert your code here ...
    proc_directory = proc_mkdir(DIRECTORY, NULL);
    if (!proc_directory) {

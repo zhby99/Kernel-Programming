@@ -27,7 +27,6 @@ int main(int argc, char* argv[]){
         if ((int)(time(NULL) - start_time) > expire) {
             break;
         }
-        sleep(1);
     }
 
 	return 0;
