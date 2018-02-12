@@ -17,6 +17,7 @@ MODULE_DESCRIPTION("CS-423 MP1");
 #define DEBUG 1
 #define DIRECTORY   "mp1"
 #define FILE        "status"
+#define _MAX_SIZE   1024
 #define T_INTERVAL  5000
 
 // My timer
@@ -27,6 +28,18 @@ static struct workqueue_struct *my_wq;
 static struct work_struct *my_work;
 
 static spinlock_t my_lock;
+
+
+
+/**
+ * The buffer used to store character for this module
+ */
+static char procfs_buffer[_MAX_SIZE];
+
+/**
+ * The size of the buffer
+ */
+static unsigned long procfs_buffer_size = 0;
 
 /*
     customed struct to store the process's info
@@ -44,53 +57,49 @@ struct proc_dir_entry *proc_directory, *proc_file;
 /**
  * The function is called when /proc file is read
  */
-static ssize_t read_proc(struct file *file ,char *buffer, size_t count, loff_t *offp ) {
+int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
     unsigned long flag;
-    unsigned long copied = 0;
+    procfs_buffer_size = 0;
     process_list *tmp;
-
-    char *buf = (char *)kmalloc(count, GFP_KERNEL);
     spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry(tmp, &mp1_list, list) {
-        copied += sprintf(buf + copied, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
+        procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
     }
     spin_unlock_irqrestore(&my_lock, flag);
-    buf[copied] = '\0';
-    copy_to_user(buffer, buf, copied);
-    kfree(buf);
-    return copied;
+    procfs_buffer[procfs_buffer_size] = '\0';
+    copy_to_user(buf, procfs_buffer, procfs_buffer_size);
+    return procfs_buffer_size;
 }
 
 /**
  * This function is called with the /proc file is written
  */
-static ssize_t write_proc(struct file *filp,const char *buffer, size_t count, loff_t *offp){
+int write_proc(struct file *filp,const char *buf, size_t count, loff_t *offp){
     unsigned long flag;
     process_list *tmp = kmalloc(sizeof(process_list), GFP_KERNEL);
     INIT_LIST_HEAD(&(tmp->list));
-    char *buf = (char *)kmalloc(count + 1, GFP_KERNEL);
-    copy_from_user(buf, buffer, count);
-    buf[count] = '\0';
+    copy_from_user(procfs_buffer, buf, count);
+    procfs_buffer[count] = '\0';
     sscanf(buf, "%u", &tmp->pid);
     tmp->cpu_time = 0;
     spin_lock_irqsave(&my_lock, flag);
     list_add(&(tmp->list), &mp1_list);
     spin_unlock_irqrestore(&my_lock, flag);
-    kfree(buf);
     return count;
 }
 
-static const struct file_operations mp1_fops = {
-    .owner   = THIS_MODULE,
+static struct file_operations mp1_fops = {
     .read = read_proc,
     .write = write_proc
 };
 
-void my_timer_callback(unsigned long data){
+void my_timer_callback(unsigned long data)
+{
     queue_work(my_wq, my_work);
 }
 
-static void my_work_function(struct work_struct *work){
+static void my_work_function(struct work_struct *work)
+{
     unsigned long flag;
     process_list *tmp, *n;
     spin_lock_irqsave(&my_lock, flag);
@@ -140,8 +149,7 @@ int __init mp1_init(void)
 }
 
 // mp1_exit - Called when module is unloaded
-void __exit mp1_exit(void)
-{
+void __exit mp1_exit(void){
    #ifdef DEBUG
    printk(KERN_ALERT "MP1 MODULE UNLOADING\n");
    #endif
