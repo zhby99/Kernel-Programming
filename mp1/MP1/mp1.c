@@ -107,6 +107,8 @@ static void my_work_function(struct work_struct *work)
         if (get_cpu_use(tmp->pid, &tmp->cpu_time) == -1) {
             list_del(&tmp->list);
             kfree(tmp);
+        } else {
+            kprintf("cpu time: %u!\n", tmp->cpu_time);
         }
     }
     spin_unlock_irqrestore(&my_lock, flag);
