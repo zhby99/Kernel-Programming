@@ -9,7 +9,6 @@ void register_process(unsigned int pid){
     char command[256];
     memset(command, 0, 256);
     sprintf(command, "echo %u > /proc/mp1/status", pid);
-    printf("finish copy!\n");
     system(command);
 }
 
