@@ -121,6 +121,7 @@ int __init mp1_init(void)
    #ifdef DEBUG
    printk(KERN_ALERT "MP1 MODULE LOADING\n");
    #endif
+   printk(KERN_ALERT "MP1 MODULE LOADING\n");
    // Insert your code here ...
    proc_directory = proc_mkdir(DIRECTORY, NULL);
    if (!proc_directory) {
