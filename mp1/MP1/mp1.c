@@ -18,6 +18,18 @@ MODULE_DESCRIPTION("CS-423 MP1");
 #define DIRECTORY   "mp1"
 #define FILE        "status"
 #define _MAX_SIZE   1024
+#define T_INTERVAL  5000
+
+// My timer
+static struct timer_list my_timer;
+// My work queue
+static struct workqueue_struct *my_wq;
+
+static struct work_struct *my_work;
+
+static spinlock_t my_lock;
+
+
 
 /**
  * The buffer used to store character for this module
@@ -46,11 +58,14 @@ struct proc_dir_entry *proc_directory, *proc_file;
  * The function is called when /proc file is read
  */
 int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
+    unsigned long flag;
     procfs_buffer_size = 0;
     process_list *tmp;
+    spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry(tmp, &mp1_list, list) {
         procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, 0);
     }
+    spin_unlock_irqrestore(&my_lock, flag);
     procfs_buffer[procfs_buffer_size] = '\0';
     copy_to_user(buf, procfs_buffer, procfs_buffer_size);
     return procfs_buffer_size;
@@ -60,13 +75,16 @@ int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
  * This function is called with the /proc file is written
  */
 int write_proc(struct file *filp,const char *buf, size_t count, loff_t *offp){
+    unsigned long flag;
     process_list *tmp = kmalloc(sizeof(process_list), GFP_KERNEL);
     INIT_LIST_HEAD(&(tmp->list));
     copy_from_user(procfs_buffer, buf, count);
     procfs_buffer[count] = '\0';
     sscanf(buf, "%u", &tmp->pid);
     tmp->cpu_time = 0;
+    spin_lock_irqsave(&my_lock, flag);
     list_add(&(tmp->list), &mp1_list);
+    spin_unlock_irqrestore(&my_lock, flag);
     return count;
 }
 
@@ -74,6 +92,26 @@ static struct file_operations mp1_fops = {
     .read = read_proc,
     .write = write_proc
 };
+
+void my_timer_callback(unsigned long data)
+{
+    queue_work(my_workqueue, my_work);
+}
+
+static void my_work_function(struct work_struct *work)
+{
+    unsigned long flag;
+    process_list *tmp, *n;
+    spin_lock_irqsave(&my_lock, flag);
+    list_for_each_entry_safe(tmp, n, &mp1_list, list) {
+        if (get_cpu_use(tmp->pid, &tmp->cpu_time) == -1) {
+            list_del(&tmp->list);
+            kfree(tmp);
+        }
+    }
+    spin_unlock_irqrestore(&my_lock, flag);
+    mod_timer(&mp1_timer, jiffies + msecs_to_jiffies(TIMEINTERVAL));
+}
 
 
 
@@ -97,6 +135,15 @@ int __init mp1_init(void)
        printk(KERN_ALERT "Error: Could not initialize /proc/%s/%s\n", DIRECTORY, FILE);
        return -ENOMEM;
    }
+
+   setup_timer(&my_timer, my_timer_callback, 0);
+   mod_timer(&my_timer, jiffies + msecs_to_jiffies(T_INTERVAL));
+
+   my_wq = create_workqueue("my_queue");
+   spin_lock_init(&my_lock);
+   my_work = (struct work_struct *)kmalloc(sizeof(struct work_struct), GFP_KERNEL);
+   INIT_WORK(my_work, my_work_function);
+
    printk(KERN_ALERT "MP1 MODULE LOADED\n");
    return 0;
 }
