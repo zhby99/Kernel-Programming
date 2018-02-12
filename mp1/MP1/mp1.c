@@ -63,7 +63,7 @@ int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
     process_list *tmp;
     spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry(tmp, &mp1_list, list) {
-        procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time));
+        procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
     }
     spin_unlock_irqrestore(&my_lock, flag);
     procfs_buffer[procfs_buffer_size] = '\0';
