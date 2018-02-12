@@ -22,7 +22,13 @@ int main(int argc, char* argv[]){
 
     register_process(getpid());
 
-    sleep(expire);
+    // break out the while loop if the time is expired
+    while (1) {
+        if ((int)(time(NULL) - start_time) > expire) {
+            break;
+        }
+        sleep(1);
+    }
 
 	return 0;
 }

@@ -57,17 +57,19 @@ struct proc_dir_entry *proc_directory, *proc_file;
 /**
  * The function is called when /proc file is read
  */
-int read_proc(struct file *file ,char *buf, size_t count, loff_t *offp ) {
+int read_proc(struct file *file ,char *buffer, size_t count, loff_t *offp ) {
     unsigned long flag;
     procfs_buffer_size = 0;
     process_list *tmp;
+
+    char *buf = (char *)kmalloc(count, GFP_KERNEL);
     spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry(tmp, &mp1_list, list) {
-        procfs_buffer_size += sprintf(procfs_buffer + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
+        procfs_buffer_size += sprintf(buf + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
     }
     spin_unlock_irqrestore(&my_lock, flag);
-    procfs_buffer[procfs_buffer_size] = '\0';
-    copy_to_user(buf, procfs_buffer, procfs_buffer_size);
+    buf[procfs_buffer_size] = '\0';
+    copy_to_user(buffer, buf, procfs_buffer_size);
     return procfs_buffer_size;
 }
 
