@@ -155,8 +155,8 @@ void __exit mp1_exit(void)
        list_del(&tmp->list);
        kfree(tmp);
    }
-   flush_workqueue(my_workqueue);
-   destroy_workqueue(my_workqueue);
+   flush_workqueue(my_wq);
+   destroy_workqueue(my_wq);
 
    kfree(my_work);
    printk(KERN_ALERT "MP1 MODULE UNLOADED\n");
