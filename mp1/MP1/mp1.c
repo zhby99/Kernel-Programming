@@ -98,8 +98,8 @@ void my_timer_callback(unsigned long data)
     queue_work(my_wq, my_work);
 }
 
-static void my_work_function(struct work_struct *work)
-{
+static void my_work_function(struct work_struct *work){
+    printk(KERN_ALERT "Entered Work!\n");
     unsigned long flag;
     process_list *tmp, *n;
     //spin_lock_irqsave(&my_lock, flag);
