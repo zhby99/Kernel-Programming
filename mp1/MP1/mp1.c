@@ -17,7 +17,6 @@ MODULE_DESCRIPTION("CS-423 MP1");
 #define DEBUG 1
 #define DIRECTORY   "mp1"
 #define FILE        "status"
-#define _MAX_SIZE   1024
 #define T_INTERVAL  5000
 
 // My timer
@@ -28,18 +27,6 @@ static struct workqueue_struct *my_wq;
 static struct work_struct *my_work;
 
 static spinlock_t my_lock;
-
-
-
-/**
- * The buffer used to store character for this module
- */
-static char procfs_buffer[_MAX_SIZE];
-
-/**
- * The size of the buffer
- */
-static unsigned long procfs_buffer_size = 0;
 
 /*
     customed struct to store the process's info
@@ -59,19 +46,19 @@ struct proc_dir_entry *proc_directory, *proc_file;
  */
 static ssize_t read_proc(struct file *file ,char *buffer, size_t count, loff_t *offp ) {
     unsigned long flag;
-    procfs_buffer_size = 0;
+    unsigned long copied = 0;
     process_list *tmp;
 
     char *buf = (char *)kmalloc(count, GFP_KERNEL);
     spin_lock_irqsave(&my_lock, flag);
     list_for_each_entry(tmp, &mp1_list, list) {
-        procfs_buffer_size += sprintf(buf + procfs_buffer_size, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
+        copied += sprintf(buf + copied, "%u: %u\n", tmp->pid, jiffies_to_msecs(cputime_to_jiffies(tmp->cpu_time)));
     }
     spin_unlock_irqrestore(&my_lock, flag);
-    buf[procfs_buffer_size] = '\0';
-    copy_to_user(buffer, buf, procfs_buffer_size);
+    buf[copied] = '\0';
+    copy_to_user(buffer, buf, copied);
     kfree(buf);
-    return procfs_buffer_size;
+    return copied;
 }
 
 /**
@@ -93,18 +80,17 @@ static ssize_t write_proc(struct file *filp,const char *buffer, size_t count, lo
     return count;
 }
 
-static struct file_operations mp1_fops = {
+static const struct file_operations mp1_fops = {
+    .owner   = THIS_MODULE,
     .read = read_proc,
     .write = write_proc
 };
 
-void my_timer_callback(unsigned long data)
-{
+void my_timer_callback(unsigned long data){
     queue_work(my_wq, my_work);
 }
 
-static void my_work_function(struct work_struct *work)
-{
+static void my_work_function(struct work_struct *work){
     unsigned long flag;
     process_list *tmp, *n;
     spin_lock_irqsave(&my_lock, flag);
@@ -162,6 +148,17 @@ void __exit mp1_exit(void)
    // Insert your code here ...
    remove_proc_entry(FILE, proc_directory);
    remove_proc_entry(DIRECTORY, NULL);
+
+   del_timer_sync(&my_timer);
+   process_list *tmp, *n;
+   list_for_each_entry_safe(tmp, n, &mp1_list, list) {
+       list_del(&tmp->list);
+       kfree(tmp);
+   }
+   flush_workqueue(my_workqueue);
+   destroy_workqueue(my_workqueue);
+
+   kfree(my_work);
    printk(KERN_ALERT "MP1 MODULE UNLOADED\n");
 }
 
