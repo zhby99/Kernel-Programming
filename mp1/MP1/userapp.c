@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 
-void register(unsigned int pid){
+void registerProcess(unsigned int pid){
     char command[256];
     memset(command, 0, 256);
     sprintf(command, "echo %u > /proc/mp1/status", pid);
@@ -15,7 +15,7 @@ void register(unsigned int pid){
 int main(int argc, char* argv[]){
     int total = 25;
     time_t start = time(NULL);
-    register(getpid());
+    registerProcess(getpid());
     while (1) {
         if ((int)(time(NULL) - start) > total) {
             break;
