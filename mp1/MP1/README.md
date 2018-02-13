@@ -12,6 +12,8 @@
 2. `sudo insmod BZHANG70_MP1.ko` install the module to kernel.
 3. run multiple times `./userapp &` for multiple processes.
 4. `cat /proc/mp1/status` to check `PID : CPU_TIME`.
+5. After all the things done, by `sudo rmmod BZHANG70_MP1` to remove the module.
+6. `make clean`.
 
 ## Screenshot for 3 processes
 
