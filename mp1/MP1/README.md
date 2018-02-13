@@ -11,7 +11,7 @@
 1. `make` to compile all the files and dependencies.
 2. `sudo insmod BZHANG70_MP1.ko` install the module to kernel.
 3. run multiple times `./userapp &` for multiple processes.
-4. `cat /proc/BZHANG70_MP1/status` to check `PID : CPU_TIME`.
+4. `cat /proc/mp1/status` to check `PID : CPU_TIME`.
 
 ## Screenshot for 3 processes
 

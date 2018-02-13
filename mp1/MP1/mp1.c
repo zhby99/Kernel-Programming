@@ -102,8 +102,10 @@ static void my_work_function(struct work_struct *work){
     unsigned long flag;
     process_list *cur, *n;
     spin_lock_irqsave(&my_lock, flag);
+    // for each entry of the list, update valid task's cpu_time and delete invalid.
     list_for_each_entry_safe(cur, n, &mp1_list, list) {
         int res = get_cpu_use(cur->pid, &cur->cpu_time);
+        // if task do not exist anymore, delete it and free the memory.
         if (res == -1) {
             list_del(&cur->list);
             kfree(cur);
