@@ -93,8 +93,7 @@ static struct file_operations mp1_fops = {
     .write = write_proc
 };
 
-void my_timer_callback(unsigned long data)
-{
+static void my_timer_callback(unsigned long data){
     queue_work(my_wq, my_work);
 }
 
