@@ -1,6 +1,7 @@
 #define LINUX
 #include "mp2_given.h"
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
