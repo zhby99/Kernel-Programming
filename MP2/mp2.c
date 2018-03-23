@@ -86,10 +86,7 @@ ssize_t mp2_write(struct file *file, const char __user *buffer, size_t count, lo
 	unsigned long cpu_time;
 	unsigned int pid;
     buf = (char *)kmalloc(count + 1, GFP_KERNEL);
-    if(copy_from_user(buf,buffer, count)){
-		kfree(buf);
-		return -EFAULT;
-	}
+    copy_from_user(buf,buffer, count)
     buf[count] = '\0';
     command = buf[0];
 
@@ -235,7 +232,7 @@ void timer_callback(unsigned long pid){
     mp2_task_struct *wakeup_task, *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock, flags);
-	wakeup_task = get_task_by_pid(pid)
+	wakeup_task = get_task_by_pid(pid);
 
 	if(!wakeup_task || wakeup_task->task == NULL || wakeup_task->state != SLEEPING) {
 		spin_unlock_irqrestore(&mp2_lock, flags);
@@ -329,7 +326,7 @@ void __exit mp2_exit(void){
    list_for_each_entry_safe(entry, temp_entry, &task_list, list){
        list_del(&(entry->list));
        del_timer( &entry->wakeup_timer );
-       kmem_cache_free(mp_task_struct_cache, entry);
+       kmem_cache_free(mp2_cache, entry);
    }
 
    kmem_cache_destroy(mp2_cache);
