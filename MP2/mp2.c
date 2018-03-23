@@ -177,23 +177,23 @@ static int set_scheduler(struct task_struct *task, int method, int priority){
 	return sched_setscheduler(task, method, &sparam);
 }
 
-mp2_task_struct* highestPrior(void){
-	struct list_head* pos;
-	mp2_task_struct *tmp, *sel = NULL;
-	unsigned long flags;
-	unsigned int invPrior = 0xffffffff;
-
-	spin_lock_irqsave(&mp2_lock,flags);
-	list_for_each(pos,&task_list){
-		tmp = list_entry(pos, mp2_task_struct,list);
-		if(tmp->period < invPrior && tmp->state == READY){
-			sel = tmp;
-			invPrior = tmp->period;
-		}
-	}
-	spin_unlock_irqrestore(&mp2_lock,flags);
-	return sel;
-}
+// mp2_task_struct* highestPrior(void){
+// 	struct list_head* pos;
+// 	mp2_task_struct *tmp, *sel = NULL;
+// 	unsigned long flags;
+// 	unsigned int invPrior = 0xffffffff;
+//
+// 	spin_lock_irqsave(&mp2_lock,flags);
+// 	list_for_each(pos,&task_list){
+// 		tmp = list_entry(pos, mp2_task_struct,list);
+// 		if(tmp->period < invPrior && tmp->state == READY){
+// 			sel = tmp;
+// 			invPrior = tmp->period;
+// 		}
+// 	}
+// 	spin_unlock_irqrestore(&mp2_lock,flags);
+// 	return sel;
+// }
 
 int dispatch_thread(void *data){
 	while(1) {
@@ -204,7 +204,14 @@ int dispatch_thread(void *data){
             return 0;
         }
         mutex_lock_interruptible(&task_mutex);
-		sel = highestPrior();
+        mp2_task_struct *tmp;
+        unsigned int prev = 0xffffffff;
+        list_for_each_entry(tmp,&task_list, list){
+    		if(tmp->period < prev && tmp->state == READY){
+    			sel = tmp;
+    			prev = tmp->period;
+    		}
+    	}
 		if(sel == NULL) {
 			if(current_mp2_task){
 				current_mp2_task->state = READY;
@@ -279,39 +286,6 @@ void yielding(unsigned int pid){
 	printk("task %u finished!\n",pid);
 
 }
-
-// void yielding(unsigned int pid)
-// {
-// 	unsigned long flags;
-//     mp2_task_struct *tmp, *tmp1;
-//
-// 	struct list_head *pos;
-//
-// 	spin_lock_irqsave(&mp2_lock, flags);
-//     list_for_each(pos,&task_list){
-// 		tmp1 = list_entry(pos, mp2_task_struct,list);
-// 		if(tmp1->pid == pid){
-// 			tmp = tmp1;
-// 		}
-// 	}
-// 	spin_unlock_irqrestore(&mp2_lock, flags);
-//
-// 	if(jiffies < tmp->next_period){
-// 			tmp->state = SLEEPING;
-// 			mod_timer(&(tmp->wakeup_timer),tmp->next_period);
-// 			mutex_lock_interruptible(&task_mutex);
-//     		current_mp2_task = NULL;
-//     		mutex_unlock(&task_mutex);
-//     // wake up scheduler
-//    			wake_up_process(dispatcher);
-//     // sleep
-//     		set_task_state(tmp->linux_task, TASK_UNINTERRUPTIBLE);
-//     		schedule();
-// 	}
-// 	tmp->next_period += msecs_to_jiffies(tmp->period);
-// 	printk("task %u finished!\n",pid);
-//
-// }
 
 int admission_control(unsigned int cpu_time, unsigned int period){
 	unsigned long flags;
