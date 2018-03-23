@@ -22,6 +22,16 @@ MODULE_DESCRIPTION("CS-423 MP2");
 #define READY       1
 #define RUNNING    2
 
+void registration(unsigned int, unsigned long, unsigned long);
+void de_registration(unsigned int);
+int dispatch_thread(void *);
+void timer_handler(unsigned long);
+void yielding(unsigned int);
+int admission_control(unsigned int, unsigned int);
+
+
+
+
 DEFINE_MUTEX(task_mutex);
 static spinlock_t mp2_lock;
 static struct kmem_cache *mp2_cache;
@@ -42,15 +52,11 @@ typedef struct {
 mp2_task_struct *current_mp2_task = NULL;
 
 
-static const struct file_operations mp2_fops = {
-    .read    = mp2_read,
-    .write   = mp2_write
-};
 
 /**
  * The function is called when /proc file is read
  */
-static ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *data){
+ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *data){
     ssize_t copied = 0;
     char *buf = (char *)kmalloc(count, GFP_KERNEL);
     mp2_task_struct *tmp, *n;
@@ -73,7 +79,7 @@ static ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, lo
 /**
  * This function is called with the /proc file is written
  */
-static ssize_t mp2_write(struct file *file, const char __user *buffer, size_t count, loff_t *data){
+ssize_t mp2_write(struct file *file, const char __user *buffer, size_t count, loff_t *data){
     char *buf;
     char command;
 	unsigned int period;
@@ -108,6 +114,11 @@ static ssize_t mp2_write(struct file *file, const char __user *buffer, size_t co
     kfree(buf);
     return count;
 }
+
+static struct file_operations mp2_fops = {
+    .read    = mp2_read,
+    .write   = mp2_write
+};
 
 /**
  * Doing registration here.
@@ -321,7 +332,7 @@ void __exit mp2_exit(void){
    list_for_each_entry_safe(tmp, n, &task_list, list) {
        list_del(&tmp->list);
        del_timer(&tmp->wakeup_timer);
-       kmem_cache_free(mp2_cache,pos);
+       kmem_cache_free(mp2_cache,tmp);
    }
 
    kmem_cache_destroy(mp2_cache);
