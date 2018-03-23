@@ -37,6 +37,7 @@ static spinlock_t mp2_lock;
 static struct kmem_cache *mp2_cache;
 static struct task_struct *dispatcher;
 LIST_HEAD(task_list);
+struct proc_dir_entry *proc_directory, *proc_file;
 
 typedef struct {
     struct task_struct *linux_task;
@@ -59,10 +60,10 @@ mp2_task_struct *current_mp2_task = NULL;
 ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *data){
     ssize_t copied = 0;
     char *buf = (char *)kmalloc(count, GFP_KERNEL);
-    mp2_task_struct *tmp, *n;
+    mp2_task_struct *tmp;
     unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
-    list_for_each_entry_safe(tmp, n, &task_list, list){
+    list_for_each_entry(tmp, &task_list, list){
 		copied += sprintf(buf+copied,"%u %u %u %u\n",tmp->pid,tmp->period,tmp->cpu_time, tmp->state);
 	}
     spin_unlock_irqrestore(&mp2_lock,flags);
@@ -150,10 +151,10 @@ void registration(unsigned int pid,unsigned long period, unsigned long cpu_time)
 
 
 void de_registration(unsigned int pid){
-	mp2_task_struct *tmp, *n;
+	mp2_task_struct *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
-	list_for_each_entry_safe(tmp,n,&task_list, list){
+	list_for_each_entry(tmp,&task_list, list){
 		if(tmp->pid == pid){
 			list_del(&tmp->list);
 			del_timer(&tmp->wakeup_timer);
@@ -182,11 +183,11 @@ int dispatch_thread(void *data){
 		mutex_lock_interruptible(&task_mutex);
 
         // select the one with highest priority
-        mp2_task_struct *tmp, *n;
+        mp2_task_struct *tmp;
     	unsigned long flags;
     	spin_lock_irqsave(&mp2_lock,flags);
         unsigned int prev = 0xffffffff
-    	list_for_each_entry_safe(tmp,n,&task_list, list){
+    	list_for_each_entry(tmp,&task_list, list){
             if(tmp->period < prev && tmp->state == READY){
     			sel = tmp;
     			prev = tmp->period;
@@ -221,10 +222,10 @@ int dispatch_thread(void *data){
 }
 
 void timer_handler(unsigned long task_pid){
-    mp2_task_struct *wakeup_task, *tmp, *n;
+    mp2_task_struct *wakeup_task, *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock, flags);
-	list_for_each_entry_safe(tmp, n, &task_list, list){
+	list_for_each_entry(tmp, &task_list, list){
 		if(tmp->pid == task_pid){
 			wakeup_task = tmp;
 		}
@@ -243,9 +244,9 @@ void timer_handler(unsigned long task_pid){
 
 void yielding(unsigned int pid){
 	unsigned long flags;
-    mp2_task_struct *sel, *tmp, *n;
+    mp2_task_struct *sel, *tmp;
 	spin_lock_irqsave(&mp2_lock, flags);
-    list_for_each_entry_safe(tmp, n, &task_list, list){
+    list_for_each_entry(tmp, &task_list, list){
 		if(tmp->pid == pid){
 			sel = tmp;
 		}
@@ -327,8 +328,8 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-   mp2_task_struct *tmp, *n;
-   list_for_each_entry_safe(tmp, n, &task_list, list) {
+   mp2_task_struct *tmp;
+   list_for_each_entry(tmp, &task_list, list) {
        list_del(&tmp->list);
        del_timer(&tmp->wakeup_timer);
        kmem_cache_free(mp2_cache,tmp);
