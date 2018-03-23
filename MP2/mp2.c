@@ -22,7 +22,7 @@ MODULE_DESCRIPTION("CS-423 MP2");
 void registration(unsigned int, unsigned long, unsigned long);
 void de_registration(unsigned int);
 int dispatch_thread(void *);
-void timer_handler(unsigned long);
+void timer_callback(unsigned long);
 void yielding(unsigned int);
 int admission_control(unsigned int, unsigned int);
 
@@ -120,6 +120,17 @@ static struct file_operations mp2_fops = {
     .write   = mp2_write
 };
 
+// helper function
+mp2_task_struct *get_task_by_pid(int pid){
+    mp2_task_struct *tmp;
+    list_for_each_entry(tmp, &task_list, list) {
+        if (tmp->pid == pid) {
+            return tmp;
+        }
+    }
+    return NULL;
+}
+
 /**
  * Doing registration here.
  */
@@ -132,7 +143,7 @@ void registration(unsigned int pid,unsigned long period, unsigned long cpu_time)
 	tmp->next = jiffies + msecs_to_jiffies(period);
 	tmp->task = find_task_by_pid(pid);
 	tmp->state = SLEEPING;
-    setup_timer(&(tmp->wakeup_timer),timer_handler, pid);
+    setup_timer(&(tmp->wakeup_timer),timer_callback, pid);
 	INIT_LIST_HEAD(&(tmp->list));
 
     // cannot find this task or cannot pass admission control.
@@ -152,24 +163,24 @@ void registration(unsigned int pid,unsigned long period, unsigned long cpu_time)
 
 // doing de registration here.
 void de_registration(unsigned int pid){
-	mp2_task_struct *tmp;
+	mp2_task_struct *to_remove;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
-	list_for_each_entry(tmp,&task_list, list){
-		if(tmp->pid == pid){
-			list_del(&tmp->list);
-			del_timer(&tmp->wakeup_timer);
-			kmem_cache_free(mp2_cache,tmp);
-			if(current_mp2_task == tmp){
-				current_mp2_task = NULL;
-				wake_up_process(dispatcher);
-			}
-			spin_unlock_irqrestore(&mp2_lock,flags);
-			printk("task %u de-registered!\n",pid);
-			return;
-		}
-	}
-	spin_unlock_irqrestore(&mp2_lock,flags);
+    to_remove = get_task_by_pid(pid);
+    if(!to_remove){
+        spin_unlock_irqrestore(&mp2_lock,flags);
+        return;
+    }
+    list_del(&to_remove->list);
+    del_timer(&to_remove->wakeup_timer);
+    kmem_cache_free(mp2_cache,to_remove);
+    if(current_mp2_task == to_remove){
+        current_mp2_task = NULL;
+        wake_up_process(dispatcher);
+    }
+    spin_unlock_irqrestore(&mp2_lock,flags);
+    printk("task %u de-registered!\n",pid);
+    return;
 }
 
 void set_priority(mp2_task_struct *task, int policy, int priority){
@@ -179,8 +190,8 @@ void set_priority(mp2_task_struct *task, int policy, int priority){
 }
 
 int dispatch_thread(void *data){
+    mp2_task_struct *sel = NULL;
 	while(1) {
-		mp2_task_struct *sel = NULL;
         mp2_task_struct *tmp;
         int prev = INT_MAX;
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -202,16 +213,14 @@ int dispatch_thread(void *data){
 				set_priority(current_mp2_task, SCHED_NORMAL, 0);
 			}
 		}
-		else if((current_mp2_task && current_mp2_task->period > sel->period) || !current_mp2_task){
-			if(current_mp2_task) {
+		else{
+			if(current_mp2_task && current_mp2_task->period > sel->period) {
+                printk(KERN_ALERT "PREEMPTING PID: %d\n", current_mp2_task->pid);
 				current_mp2_task->state = READY;
-				//for the old running task (preempted task), the dispatching thread should execute the following code:
 				set_priority(current_mp2_task, SCHED_NORMAL, 0);
       			set_task_state(current_mp2_task->task, TASK_UNINTERRUPTIBLE);
 			}
 			sel->state = RUNNING;
-
-			//For the preempting task
 			set_priority(sel, SCHED_FIFO, 99);
 	      	current_mp2_task = sel;
 			wake_up_process(sel->task);
@@ -222,19 +231,15 @@ int dispatch_thread(void *data){
 	return 0;
 }
 
-void timer_handler(unsigned long task_pid){
+void timer_callback(unsigned long pid){
     mp2_task_struct *wakeup_task, *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock, flags);
-	list_for_each_entry(tmp, &task_list, list){
-		if(tmp->pid == task_pid){
-			wakeup_task = tmp;
-		}
-	}
+	wakeup_task = get_task_by_pid(pid)
 
 	if(!wakeup_task || wakeup_task->task == NULL || wakeup_task->state != SLEEPING) {
 		spin_unlock_irqrestore(&mp2_lock, flags);
-		printk("timer of task %u failed with error.\n", task_pid);
+		printk("Failed with error.\n", task_pid);
 		return;
 	}
 	wakeup_task->state = READY;
@@ -244,16 +249,7 @@ void timer_handler(unsigned long task_pid){
 }
 
 void yielding(unsigned int pid){
-	unsigned long flags;
-    mp2_task_struct *sel, *tmp;
-	spin_lock_irqsave(&mp2_lock, flags);
-    list_for_each_entry(tmp, &task_list, list){
-		if(tmp->pid == pid){
-			sel = tmp;
-		}
-	}
-	spin_unlock_irqrestore(&mp2_lock, flags);
-
+    mp2_task_struct *sel = get_task_by_pid(pid);
 	if(jiffies < sel->next){
 			sel->state = SLEEPING;
 			mod_timer(&(sel->wakeup_timer),sel->next);
@@ -327,16 +323,18 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-   struct list_head *pos, *n;
-   mp2_task_struct* tmp;
-   list_for_each_safe(pos,n,&task_list){
-       tmp = list_entry(pos, mp2_task_struct,list);
-       list_del(&tmp->list);
-       del_timer(&tmp->wakeup_timer);
-       kmem_cache_free(mp2_cache,pos);
+   mp2_task_struct *entry, *temp_entry;
+
+   spin_lock(&mp2_lock);
+   list_for_each_entry_safe(entry, temp_entry, &task_list, list){
+       list_del(&(entry->list));
+       del_timer( &entry->wakeup_timer );
+       kmem_cache_free(mp_task_struct_cache, entry);
    }
 
    kmem_cache_destroy(mp2_cache);
+
+   spin_unlock(&mp2_lock);
    list_del(&task_list);
 
    remove_proc_entry(FILE, proc_directory);
