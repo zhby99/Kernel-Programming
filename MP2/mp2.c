@@ -1,14 +1,9 @@
 #define LINUX
 #include "mp2_given.h"
-#include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/proc_fs.h>
-#include <linux/list.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/module.h>
+#include <linux/proc_fs.h>
+#include <linux/uaccess.h>
 #include <linux/kthread.h>
 
 MODULE_LICENSE("GPL");
@@ -33,14 +28,11 @@ int admission_control(unsigned int, unsigned int);
 
 
 
-DEFINE_MUTEX(task_mutex);
-static spinlock_t mp2_lock;
-static struct kmem_cache *mp2_cache;
-static struct task_struct *dispatcher;
+
 
 struct proc_dir_entry *proc_directory, *proc_file;
 
-typedef struct {
+struct mp2_task_struct{
     struct list_head list;
     struct task_struct *linux_task;
     struct timer_list wakeup_timer;
@@ -49,11 +41,16 @@ typedef struct {
     unsigned int period;
     unsigned int state;
     unsigned long next_period;
-} mp2_task_struct;
+} ;
 
 LIST_HEAD(task_list);
 
-mp2_task_struct *current_mp2_task = NULL;
+DEFINE_MUTEX(task_mutex);
+static spinlock_t mp2_lock;
+static struct kmem_cache *mp2_cache;
+static struct task_struct *dispatcher;
+
+struct mp2_task_struct *current_mp2_task = NULL;
 
 
 
@@ -63,7 +60,7 @@ mp2_task_struct *current_mp2_task = NULL;
 ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *data){
     ssize_t copied = 0;
     char *buf = (char *)kmalloc(count, GFP_KERNEL);
-    mp2_task_struct *tmp;
+    struct mp2_task_struct *tmp;
     unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
     list_for_each_entry(tmp, &task_list, list){
@@ -129,7 +126,7 @@ static struct file_operations mp2_fops = {
  */
 void registration(unsigned int pid,unsigned long period, unsigned long cpu_time){
 	unsigned long flags;
-	mp2_task_struct *tmp = (mp2_task_struct *)kmem_cache_alloc(mp2_cache, GFP_KERNEL);
+	struct mp2_task_struct *tmp = (struct mp2_task_struct *)kmem_cache_alloc(mp2_cache, GFP_KERNEL);
 	tmp->pid = pid;
 	tmp->period = period;
 	tmp->cpu_time = cpu_time;
@@ -154,7 +151,7 @@ void registration(unsigned int pid,unsigned long period, unsigned long cpu_time)
 
 
 void de_registration(unsigned int pid){
-	mp2_task_struct *tmp;
+	struct mp2_task_struct *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
 	list_for_each_entry(tmp,&task_list, list){
@@ -177,7 +174,7 @@ void de_registration(unsigned int pid){
 
 int dispatch_thread(void *data){
 	while(1) {
-		mp2_task_struct *sel;
+		struct mp2_task_struct *sel;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		if (kthread_should_stop()) {
@@ -186,7 +183,7 @@ int dispatch_thread(void *data){
 		mutex_lock_interruptible(&task_mutex);
 
         // select the one with highest priority
-        mp2_task_struct *tmp;
+        struct mp2_task_struct *tmp;
         struct list_head* pos;
     	unsigned long flags;
     	spin_lock_irqsave(&mp2_lock,flags);
@@ -227,7 +224,7 @@ int dispatch_thread(void *data){
 }
 
 void timer_handler(unsigned long task_pid){
-    mp2_task_struct *wakeup_task, *tmp;
+    struct mp2_task_struct *wakeup_task, *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock, flags);
 	list_for_each_entry(tmp, &task_list, list){
@@ -249,7 +246,7 @@ void timer_handler(unsigned long task_pid){
 
 void yielding(unsigned int pid){
 	unsigned long flags;
-    mp2_task_struct *sel, *tmp;
+    struct mp2_task_struct *sel, *tmp;
 	spin_lock_irqsave(&mp2_lock, flags);
     list_for_each_entry(tmp, &task_list, list){
 		if(tmp->pid == pid){
@@ -277,7 +274,7 @@ void yielding(unsigned int pid){
 
 int admission_control(unsigned int cpu_time, unsigned int period){
 	unsigned long flags;
-	mp2_task_struct *tmp;
+	struct mp2_task_struct *tmp;
 
 	spin_lock_irqsave(&mp2_lock,flags);
 	unsigned int ratio = (1000 * cpu_time) / period;
@@ -309,7 +306,7 @@ int __init mp2_init(void)
        return -ENOMEM;
    }
 
-   mp2_cache = kmem_cache_create("mp2_task_struct",sizeof(mp2_task_struct), ARCH_MIN_TASKALIGN,SLAB_PANIC, NULL);
+   mp2_cache = kmem_cache_create("mp2_task_struct",sizeof(struct mp2_task_struct), ARCH_MIN_TASKALIGN,SLAB_PANIC, NULL);
 
    dispatcher = kthread_run(dispatch_thread, NULL, "dispatching thread");
 
@@ -333,7 +330,7 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-   mp2_task_struct *tmp;
+   struct mp2_task_struct *tmp;
    list_for_each_entry(tmp, &task_list, list) {
        list_del(&tmp->list);
        del_timer(&tmp->wakeup_timer);
