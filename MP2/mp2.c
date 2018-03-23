@@ -40,7 +40,7 @@ static struct task_struct *dispatcher;
 LIST_HEAD(task_list);
 struct proc_dir_entry *proc_directory, *proc_file;
 
-typedef struct mp2_task_struct_t{
+typedef struct {
     struct task_struct *linux_task;
     struct timer_list wakeup_timer;
     struct list_head list;
@@ -184,7 +184,7 @@ int dispatch_thread(void *data){
 		mutex_lock_interruptible(&task_mutex);
 
         // select the one with highest priority
-        mp2_task_struct *tmp;
+        struct mp2_task_struct *tmp;
     	unsigned long flags;
     	spin_lock_irqsave(&mp2_lock,flags);
         unsigned int prev = 0xffffffff
