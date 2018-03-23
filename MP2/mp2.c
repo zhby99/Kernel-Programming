@@ -1,5 +1,6 @@
 #define LINUX
 #include "mp2_given.h"
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -39,7 +40,7 @@ static struct task_struct *dispatcher;
 LIST_HEAD(task_list);
 struct proc_dir_entry *proc_directory, *proc_file;
 
-typedef struct {
+typedef struct mp2_task_struct_t{
     struct task_struct *linux_task;
     struct timer_list wakeup_timer;
     struct list_head list;
