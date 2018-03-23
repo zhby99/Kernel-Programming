@@ -197,15 +197,16 @@ static int set_scheduler(struct task_struct *task, int method, int priority){
 
 int dispatch_thread(void *data){
 	while(1) {
-		mp2_task_struct *sel;
+		mp2_task_struct *sel = NULL;
+        mp2_task_struct *tmp;
+        unsigned int prev = 0xffffffff;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		if (kthread_should_stop()) {
             return 0;
         }
         mutex_lock_interruptible(&task_mutex);
-        mp2_task_struct *tmp;
-        unsigned int prev = 0xffffffff;
+
         list_for_each_entry(tmp,&task_list, list){
     		if(tmp->period < prev && tmp->state == READY){
     			sel = tmp;
