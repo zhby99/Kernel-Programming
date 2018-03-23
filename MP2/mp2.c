@@ -177,6 +177,24 @@ static int set_scheduler(struct task_struct *task, int method, int priority){
 	return sched_setscheduler(task, method, &sparam);
 }
 
+mp2_task_struct* highestPrior(void){
+	struct list_head* pos;
+	mp2_task_struct *tmp, *sel = NULL;
+	unsigned long flags;
+	unsigned int invPrior = 0xffffffff;
+
+	spin_lock_irqsave(&mp2_lock,flags);
+	list_for_each(pos,&task_list){
+		tmp = list_entry(pos, mp2_task_struct,list);
+		if(tmp->period < invPrior && tmp->state == READY){
+			sel = tmp;
+			invPrior = tmp->period;
+		}
+	}
+	spin_unlock_irqrestore(&mp2_lock,flags);
+	return sel;
+}
+
 int dispatch_thread(void *data){
 	while(1) {
 		mp2_task_struct *sel;
@@ -185,21 +203,8 @@ int dispatch_thread(void *data){
 		if (kthread_should_stop()) {
             return 0;
         }
-		mutex_lock_interruptible(&task_mutex);
-
-        // select the one with highest priority
-        mp2_task_struct *tmp;
-    	unsigned long flags;
-        unsigned int prev = 0xffffffff;
-    	spin_lock_irqsave(&mp2_lock,flags);
-    	list_for_each_entry(tmp,&task_list, list){
-            if(tmp->period < prev && tmp->state == READY){
-    			sel = tmp;
-    			prev = tmp->period;
-    		}
-    	}
-    	spin_unlock_irqrestore(&mp2_lock,flags);
-
+        mutex_lock_interruptible(&task_mutex);
+		sel = highestPrior();
 		if(sel == NULL) {
 			if(current_mp2_task){
 				current_mp2_task->state = READY;
@@ -247,30 +252,63 @@ void timer_handler(unsigned long task_pid){
 	return;
 }
 
-void yielding(unsigned int pid){
+// void yielding(unsigned int pid){
+// 	unsigned long flags;
+//     mp2_task_struct *sel, *tmp;
+// 	spin_lock_irqsave(&mp2_lock, flags);
+//     list_for_each_entry(tmp, &task_list, list){
+// 		if(tmp->pid == pid){
+// 			sel = tmp;
+// 		}
+// 	}
+// 	spin_unlock_irqrestore(&mp2_lock, flags);
+//
+// 	if(jiffies < sel->next_period){
+// 			sel->state = SLEEPING;
+// 			mod_timer(&(sel->wakeup_timer),sel->next_period);
+// 			mutex_lock_interruptible(&task_mutex);
+//     		current_mp2_task = NULL;
+//     		mutex_unlock(&task_mutex);
+//             // wake up scheduler
+//    			wake_up_process(dispatcher);
+//             // sleep
+//     		set_task_state(sel->linux_task, TASK_UNINTERRUPTIBLE);
+//     		schedule();
+// 	}
+// 	sel->next_period += msecs_to_jiffies(sel->period);
+// 	printk("task %u finished!\n",pid);
+//
+// }
+
+void yielding(unsigned int pid)
+{
 	unsigned long flags;
-    mp2_task_struct *sel, *tmp;
+    mp2_task_struct *tmp, *tmp1;
+
+	struct list_head *pos;
+
 	spin_lock_irqsave(&mp2_lock, flags);
-    list_for_each_entry(tmp, &task_list, list){
-		if(tmp->pid == pid){
-			sel = tmp;
+    list_for_each(pos,&task_list){
+		tmp1 = list_entry(pos, mp2_task_struct,list);
+		if(tmp1->pid == pid){
+			tmp = tmp1;
 		}
 	}
 	spin_unlock_irqrestore(&mp2_lock, flags);
 
-	if(jiffies < sel->next_period){
-			sel->state = SLEEPING;
-			mod_timer(&(sel->wakeup_timer),sel->next_period);
+	if(jiffies < tmp->next_period){
+			tmp->state = SLEEPING;
+			mod_timer(&(tmp->wakeup_timer),tmp->next_period);
 			mutex_lock_interruptible(&task_mutex);
     		current_mp2_task = NULL;
     		mutex_unlock(&task_mutex);
-            // wake up scheduler
+    // wake up scheduler
    			wake_up_process(dispatcher);
-            // sleep
-    		set_task_state(sel->linux_task, TASK_UNINTERRUPTIBLE);
+    // sleep
+    		set_task_state(tmp->linux_task, TASK_UNINTERRUPTIBLE);
     		schedule();
 	}
-	sel->next_period += msecs_to_jiffies(sel->period);
+	tmp->next_period += msecs_to_jiffies(tmp->period);
 	printk("task %u finished!\n",pid);
 
 }
@@ -325,11 +363,9 @@ void __exit mp2_exit(void){
    printk(KERN_ALERT "MP2 MODULE UNLOADING\n");
    #endif
    // Insert your code here ...
-   remove_proc_entry(FILE, proc_directory);
-   remove_proc_entry(DIRECTORY, NULL);
 
    int ret = kthread_stop(dispatcher);
-   if (ret != -EINTR)
+   if (!ret)
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
@@ -344,6 +380,9 @@ void __exit mp2_exit(void){
 
    kmem_cache_destroy(mp2_cache);
    list_del(&task_list);
+
+   remove_proc_entry(FILE, proc_directory);
+   remove_proc_entry(DIRECTORY, NULL);
    printk(KERN_ALERT "MP2 MODULE UNLOADED\n");
 }
 
