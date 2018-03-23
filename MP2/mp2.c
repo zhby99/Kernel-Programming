@@ -171,6 +171,12 @@ void de_registration(unsigned int pid){
 	printk("task %u de-registered!",pid);
 }
 
+static int set_scheduler(struct task_struct *task, int method, int priority){
+	struct sched_param sparam;
+	sparam.sched_priority = priority;
+	return sched_setscheduler(task, method, &sparam);
+}
+
 int dispatch_thread(void *data){
 	while(1) {
 		mp2_task_struct *sel;
