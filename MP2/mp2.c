@@ -333,10 +333,10 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-   struct list_head* pos, *n;
+   struct list_head *pos, *n;
    mp2_task_struct* tmp;
    list_for_each_safe(pos,n,&task_list){
-       tmp = list_entry(pos, struct mp2_task_struct,list);
+       tmp = list_entry(pos, mp2_task_struct,list);
        list_del(&tmp->list);
        del_timer(&tmp->wakeup_timer);
        kmem_cache_free(mp2_cache,pos);
