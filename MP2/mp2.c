@@ -37,7 +37,7 @@ DEFINE_MUTEX(task_mutex);
 static spinlock_t mp2_lock;
 static struct kmem_cache *mp2_cache;
 static struct task_struct *dispatcher;
-LIST_HEAD(task_list);
+
 struct proc_dir_entry *proc_directory, *proc_file;
 
 typedef struct {
@@ -50,6 +50,8 @@ typedef struct {
     unsigned int state;
     unsigned long next_period;
 } mp2_task_struct;
+
+LIST_HEAD(task_list);
 
 mp2_task_struct *current_mp2_task = NULL;
 
