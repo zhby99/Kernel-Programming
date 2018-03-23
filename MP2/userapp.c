@@ -71,10 +71,10 @@ int main(int argc, char* argv[]) {
 	printf("\nScheduler registration request.\n");
 	pid_t pid = getpid();
 	reg(pid, argv[1], proctime);
-	if (read_status(pid, argv[1], proctime)) {
-		printf("Registeration failed.\n");
-		exit(1);
-	}
+	// if (read_status(pid, argv[1], proctime)) {
+	// 	printf("Registeration failed.\n");
+	// 	exit(1);
+	// }
 	printf("Registration succeeded.\n");
 	yield(pid);
 	printf("Start time of the process %d second\n", start.tv_sec);
