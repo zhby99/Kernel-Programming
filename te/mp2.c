@@ -381,9 +381,7 @@ static void __exit mp2_exit(void)
     printk(KERN_ALERT "MP2 MODULE UNLOADING\n");
     #endif
 
-    remove_proc_entry("status", reg_dir);
-    remove_proc_entry("mp2", NULL);
-    printk(KERN_ALERT "directory and file destroyed\n");
+
     int ret = kthread_stop(dispatcher);
 	if (!ret)
 		printk("Counter thread has stopped\n");
@@ -399,6 +397,10 @@ static void __exit mp2_exit(void)
     kmem_cache_destroy(mp2_cache);
 	list_del(&task_list);
     printk(KERN_ALERT "list destroyed\n");
+
+    remove_proc_entry("status", reg_dir);
+    remove_proc_entry("mp2", NULL);
+    printk(KERN_ALERT "directory and file destroyed\n");
     printk(KERN_ALERT "MP2 MODULE UNLOADED\n");
 }
 
