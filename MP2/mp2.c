@@ -38,13 +38,13 @@ struct proc_dir_entry *proc_directory, *proc_file;
 
 typedef struct {
     struct list_head list;
-    struct task_struct *linux_task;
+    struct task_struct *task;
     struct timer_list wakeup_timer;
     unsigned int pid;
     unsigned int cpu_time;
     unsigned int period;
     unsigned int state;
-    unsigned long next_period;
+    unsigned long next;
 } mp2_task_struct;
 
 LIST_HEAD(task_list);
@@ -129,16 +129,17 @@ void registration(unsigned int pid,unsigned long period, unsigned long cpu_time)
 	tmp->pid = pid;
 	tmp->period = period;
 	tmp->cpu_time = cpu_time;
-	tmp->next_period = jiffies + msecs_to_jiffies(period);
-	tmp->linux_task = find_task_by_pid(pid);
+	tmp->next = jiffies + msecs_to_jiffies(period);
+	tmp->task = find_task_by_pid(pid);
 	tmp->state = SLEEPING;
+    setup_timer(&(tmp->wakeup_timer),timer_handler, pid);
 	INIT_LIST_HEAD(&(tmp->list));
-	setup_timer(&(tmp->wakeup_timer),timer_handler, pid);
-	if( !admission_control(cpu_time, period) || !tmp->linux_task) {
 
+    // cannot find this task or cannot pass admission control.
+	if( !admission_control(cpu_time, period) || !tmp->task) {
 		del_timer(&(tmp->wakeup_timer));
 		kmem_cache_free(mp2_cache, tmp);
-		printk("admission control failed or cannot find task by pid!");
+		printk("cannot find this task or cannot pass admission control!");
 		return;
 	}
 
@@ -149,6 +150,7 @@ void registration(unsigned int pid,unsigned long period, unsigned long cpu_time)
 }
 
 
+// doing de registration here.
 void de_registration(unsigned int pid){
 	mp2_task_struct *tmp;
 	unsigned long flags;
@@ -168,38 +170,19 @@ void de_registration(unsigned int pid){
 		}
 	}
 	spin_unlock_irqrestore(&mp2_lock,flags);
-	printk("task %u de-registered!",pid);
 }
 
-static int set_scheduler(struct task_struct *task, int method, int priority){
+void set_priority(mp2_task_struct *task, int policy, int priority){
 	struct sched_param sparam;
 	sparam.sched_priority = priority;
-	return sched_setscheduler(task, method, &sparam);
+	sched_setscheduler(task->task, policy, &sparam);
 }
-
-// mp2_task_struct* highestPrior(void){
-// 	struct list_head* pos;
-// 	mp2_task_struct *tmp, *sel = NULL;
-// 	unsigned long flags;
-// 	unsigned int invPrior = 0xffffffff;
-//
-// 	spin_lock_irqsave(&mp2_lock,flags);
-// 	list_for_each(pos,&task_list){
-// 		tmp = list_entry(pos, mp2_task_struct,list);
-// 		if(tmp->period < invPrior && tmp->state == READY){
-// 			sel = tmp;
-// 			invPrior = tmp->period;
-// 		}
-// 	}
-// 	spin_unlock_irqrestore(&mp2_lock,flags);
-// 	return sel;
-// }
 
 int dispatch_thread(void *data){
 	while(1) {
 		mp2_task_struct *sel = NULL;
         mp2_task_struct *tmp;
-        unsigned int prev = 0xffffffff;
+        int prev = INT_MAX;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		if (kthread_should_stop()) {
@@ -216,22 +199,22 @@ int dispatch_thread(void *data){
 		if(sel == NULL) {
 			if(current_mp2_task){
 				current_mp2_task->state = READY;
-				set_scheduler(current_mp2_task->linux_task, SCHED_NORMAL, 0);
+				set_priority(current_mp2_task, SCHED_NORMAL, 0);
 			}
 		}
 		else if((current_mp2_task && current_mp2_task->period > sel->period) || !current_mp2_task){
 			if(current_mp2_task) {
 				current_mp2_task->state = READY;
 				//for the old running task (preempted task), the dispatching thread should execute the following code:
-				set_scheduler(current_mp2_task->linux_task, SCHED_NORMAL, 0);
-      			set_task_state(current_mp2_task->linux_task, TASK_UNINTERRUPTIBLE);
+				set_priority(current_mp2_task, SCHED_NORMAL, 0);
+      			set_task_state(current_mp2_task->task, TASK_UNINTERRUPTIBLE);
 			}
 			sel->state = RUNNING;
 
 			//For the preempting task
-			set_scheduler(sel->linux_task, SCHED_FIFO, 99);
+			set_priority(sel, SCHED_FIFO, 99);
 	      	current_mp2_task = sel;
-			wake_up_process(sel->linux_task);
+			wake_up_process(sel->task);
 		}
 		mutex_unlock(&task_mutex);
 	}
@@ -249,7 +232,7 @@ void timer_handler(unsigned long task_pid){
 		}
 	}
 
-	if(!wakeup_task || wakeup_task->linux_task == NULL || wakeup_task->state != SLEEPING) {
+	if(!wakeup_task || wakeup_task->task == NULL || wakeup_task->state != SLEEPING) {
 		spin_unlock_irqrestore(&mp2_lock, flags);
 		printk("timer of task %u failed with error.\n", task_pid);
 		return;
@@ -271,33 +254,33 @@ void yielding(unsigned int pid){
 	}
 	spin_unlock_irqrestore(&mp2_lock, flags);
 
-	if(jiffies < sel->next_period){
+	if(jiffies < sel->next){
 			sel->state = SLEEPING;
-			mod_timer(&(sel->wakeup_timer),sel->next_period);
+			mod_timer(&(sel->wakeup_timer),sel->next);
 			mutex_lock_interruptible(&task_mutex);
     		current_mp2_task = NULL;
     		mutex_unlock(&task_mutex);
             // wake up scheduler
    			wake_up_process(dispatcher);
             // sleep
-    		set_task_state(sel->linux_task, TASK_UNINTERRUPTIBLE);
+    		set_task_state(sel->task, TASK_UNINTERRUPTIBLE);
     		schedule();
 	}
-	sel->next_period += msecs_to_jiffies(sel->period);
+	sel->next += msecs_to_jiffies(sel->period);
 	printk("task %u finished!\n",pid);
 
 }
 
+// use admission control to meet all deadlines, simply not accept new one that would lead to X.
 int admission_control(unsigned int cpu_time, unsigned int period){
 	unsigned long flags;
 	mp2_task_struct *tmp;
-
+    // multiply by 1000 to avoid floating point arithmetics.
 	spin_lock_irqsave(&mp2_lock,flags);
 	unsigned int ratio = (1000 * cpu_time) / period;
 	list_for_each_entry(tmp, &task_list, list)
 		ratio += (1000 * tmp->cpu_time) / tmp->period;
 	spin_unlock_irqrestore(&mp2_lock,flags);
-
 	return ratio < 693;
 }
 
