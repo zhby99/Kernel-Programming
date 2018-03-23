@@ -387,14 +387,17 @@ static void __exit mp2_exit(void)
 	if (ret != -EINTR)
 		printk("Counter thread has stopped\n");
     mutex_destroy(&task_mutex);
+    printk(KERN_ALERT "Mutex destroyed\n");
 	list_for_each_safe(pos,n,&task_list){
 		tmp = list_entry(pos, struct mp2_task_struct,list);
 		list_del(&tmp->list);
 		del_timer(&tmp->wakeup_timer);
 		kmem_cache_free(mp2_cache,pos);
 	}
+    printk(KERN_ALERT "list content destroyed\n");
     kmem_cache_destroy(mp2_cache);
 	list_del(&task_list);
+    printk(KERN_ALERT "list destroyed\n");
     printk(KERN_ALERT "MP2 MODULE UNLOADED\n");
 }
 
