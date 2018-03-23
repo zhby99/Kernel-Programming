@@ -383,8 +383,9 @@ static void __exit mp2_exit(void)
 
     remove_proc_entry("status", reg_dir);
     remove_proc_entry("mp2", NULL);
+    printk(KERN_ALERT "directory and file destroyed\n");
     int ret = kthread_stop(dispatcher);
-	if (ret != -EINTR)
+	if (!ret)
 		printk("Counter thread has stopped\n");
     mutex_destroy(&task_mutex);
     printk(KERN_ALERT "Mutex destroyed\n");
