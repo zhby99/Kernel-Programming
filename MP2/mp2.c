@@ -252,66 +252,66 @@ void timer_handler(unsigned long task_pid){
 	return;
 }
 
-// void yielding(unsigned int pid){
-// 	unsigned long flags;
-//     mp2_task_struct *sel, *tmp;
-// 	spin_lock_irqsave(&mp2_lock, flags);
-//     list_for_each_entry(tmp, &task_list, list){
-// 		if(tmp->pid == pid){
-// 			sel = tmp;
-// 		}
-// 	}
-// 	spin_unlock_irqrestore(&mp2_lock, flags);
-//
-// 	if(jiffies < sel->next_period){
-// 			sel->state = SLEEPING;
-// 			mod_timer(&(sel->wakeup_timer),sel->next_period);
-// 			mutex_lock_interruptible(&task_mutex);
-//     		current_mp2_task = NULL;
-//     		mutex_unlock(&task_mutex);
-//             // wake up scheduler
-//    			wake_up_process(dispatcher);
-//             // sleep
-//     		set_task_state(sel->linux_task, TASK_UNINTERRUPTIBLE);
-//     		schedule();
-// 	}
-// 	sel->next_period += msecs_to_jiffies(sel->period);
-// 	printk("task %u finished!\n",pid);
-//
-// }
-
-void yielding(unsigned int pid)
-{
+void yielding(unsigned int pid){
 	unsigned long flags;
-    mp2_task_struct *tmp, *tmp1;
-
-	struct list_head *pos;
-
+    mp2_task_struct *sel, *tmp;
 	spin_lock_irqsave(&mp2_lock, flags);
-    list_for_each(pos,&task_list){
-		tmp1 = list_entry(pos, mp2_task_struct,list);
-		if(tmp1->pid == pid){
-			tmp = tmp1;
+    list_for_each_entry(tmp, &task_list, list){
+		if(tmp->pid == pid){
+			sel = tmp;
 		}
 	}
 	spin_unlock_irqrestore(&mp2_lock, flags);
 
-	if(jiffies < tmp->next_period){
-			tmp->state = SLEEPING;
-			mod_timer(&(tmp->wakeup_timer),tmp->next_period);
+	if(jiffies < sel->next_period){
+			sel->state = SLEEPING;
+			mod_timer(&(sel->wakeup_timer),sel->next_period);
 			mutex_lock_interruptible(&task_mutex);
     		current_mp2_task = NULL;
     		mutex_unlock(&task_mutex);
-    // wake up scheduler
+            // wake up scheduler
    			wake_up_process(dispatcher);
-    // sleep
-    		set_task_state(tmp->linux_task, TASK_UNINTERRUPTIBLE);
+            // sleep
+    		set_task_state(sel->linux_task, TASK_UNINTERRUPTIBLE);
     		schedule();
 	}
-	tmp->next_period += msecs_to_jiffies(tmp->period);
+	sel->next_period += msecs_to_jiffies(sel->period);
 	printk("task %u finished!\n",pid);
 
 }
+
+// void yielding(unsigned int pid)
+// {
+// 	unsigned long flags;
+//     mp2_task_struct *tmp, *tmp1;
+//
+// 	struct list_head *pos;
+//
+// 	spin_lock_irqsave(&mp2_lock, flags);
+//     list_for_each(pos,&task_list){
+// 		tmp1 = list_entry(pos, mp2_task_struct,list);
+// 		if(tmp1->pid == pid){
+// 			tmp = tmp1;
+// 		}
+// 	}
+// 	spin_unlock_irqrestore(&mp2_lock, flags);
+//
+// 	if(jiffies < tmp->next_period){
+// 			tmp->state = SLEEPING;
+// 			mod_timer(&(tmp->wakeup_timer),tmp->next_period);
+// 			mutex_lock_interruptible(&task_mutex);
+//     		current_mp2_task = NULL;
+//     		mutex_unlock(&task_mutex);
+//     // wake up scheduler
+//    			wake_up_process(dispatcher);
+//     // sleep
+//     		set_task_state(tmp->linux_task, TASK_UNINTERRUPTIBLE);
+//     		schedule();
+// 	}
+// 	tmp->next_period += msecs_to_jiffies(tmp->period);
+// 	printk("task %u finished!\n",pid);
+//
+// }
 
 int admission_control(unsigned int cpu_time, unsigned int period){
 	unsigned long flags;
