@@ -190,8 +190,8 @@ int dispatch_thread(void *data){
         // select the one with highest priority
         mp2_task_struct *tmp;
     	unsigned long flags;
-    	spin_lock_irqsave(&mp2_lock,flags);
         unsigned int prev = 0xffffffff;
+    	spin_lock_irqsave(&mp2_lock,flags);
     	list_for_each_entry(tmp,&task_list, list){
             if(tmp->period < prev && tmp->state == READY){
     			sel = tmp;
@@ -333,11 +333,13 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-   mp2_task_struct *tmp;
-   list_for_each_entry(tmp, &task_list, list) {
+   struct list_head* pos, *n;
+   mp2_task_struct* tmp;
+   list_for_each_safe(pos,n,&task_list){
+       tmp = list_entry(pos, struct mp2_task_struct,list);
        list_del(&tmp->list);
        del_timer(&tmp->wakeup_timer);
-       kmem_cache_free(mp2_cache,tmp);
+       kmem_cache_free(mp2_cache,pos);
    }
 
    kmem_cache_destroy(mp2_cache);
