@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
+#include <linux/kthread.h>
 #include "mp2_given.h"
 
 MODULE_LICENSE("GPL");
@@ -101,7 +102,7 @@ ssize_t mp2_write(struct file *file, const char __user *buffer, size_t count, lo
             break;
         case 'Y':
             sscanf(buf,"%c, %u",&command,&pid);
-            yield(pid);
+            yielding(pid);
             break;
         case 'D':
             sscanf(buf, "%c, %u", &command, &pid);
@@ -186,7 +187,7 @@ int dispatch_thread(void *data){
     	unsigned long flags;
     	spin_lock_irqsave(&mp2_lock,flags);
     	list_for_each_entry_safe(tmp,n,&task_list, list){
-            if(tmp->period < invPrior && tmp->state == READY){
+            if(tmp->period < 0xffffffff && tmp->state == READY){
     			sel = tmp;
     			invPrior = tmp->period;
     		}
@@ -326,8 +327,6 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-
-   del_timer_sync(&my_timer);
    mp2_task_struct *tmp, *n;
    list_for_each_entry_safe(tmp, n, &task_list, list) {
        list_del(&tmp->list);
