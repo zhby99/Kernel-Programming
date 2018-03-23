@@ -11,13 +11,13 @@ void factorial (int factval){
 }
 
 void reg(pid_t pid, char* period, char* process_time) {
-	FILE *f = fopen("/proc/mp/status", "w");
+	FILE *f = fopen("/proc/mp2/status", "w");
 	fprintf(f, "R, %d, %s, %s\n", pid, period, process_time);
 	fclose(f);
 }
 
 int read_status(pid_t pid, char* period, char* process_time) {
-	FILE *f = fopen ("/proc/mp/status", "r");
+	FILE *f = fopen ("/proc/mp2/status", "r");
 	char buffer[255];
 	char target[255];
 	sprintf(target, "%d[0]: %s ms, %s ms\n", pid, period, process_time);
