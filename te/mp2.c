@@ -263,7 +263,7 @@ void de_registration(unsigned int pid)
 	struct list_head *pos, *n;
 	struct mp2_task_struct *tmp;
 	unsigned long flags;
-	spin_lock_irqsave(&mp2_lock,flags);
+	spin_lock_irqsave(&lock,flags);
 	list_for_each_safe(pos,n,&task_list){
 		tmp = list_entry(pos,struct mp2_task_struct,list);
 		if(tmp->pid == pid){
@@ -275,7 +275,7 @@ void de_registration(unsigned int pid)
 				current_mp2_task = NULL;
 				wake_up_process(dispatcher);
 			}
-			spin_unlock_irqrestore(&mp2_lock,flags);
+			spin_unlock_irqrestore(&lock,flags);
 			printk("task %u de-registered!\n",pid);
 			return;
 		}
