@@ -184,11 +184,13 @@ int dispatch_thread(void *data){
 		mutex_lock_interruptible(&task_mutex);
 
         // select the one with highest priority
-        struct mp2_task_struct *tmp;
+        mp2_task_struct *tmp;
+        struct list_head* pos;
     	unsigned long flags;
     	spin_lock_irqsave(&mp2_lock,flags);
         unsigned int prev = 0xffffffff
-    	list_for_each_entry(tmp,&task_list, list){
+    	list_for_each(pos,&task_list){
+            tmp = list_entry(pos,struct mp2_task_struct,list);
             if(tmp->period < prev && tmp->state == READY){
     			sel = tmp;
     			prev = tmp->period;
