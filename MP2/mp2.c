@@ -41,9 +41,9 @@ LIST_HEAD(task_list);
 struct proc_dir_entry *proc_directory, *proc_file;
 
 typedef struct {
+    struct list_head list;
     struct task_struct *linux_task;
     struct timer_list wakeup_timer;
-    struct list_head list;
     unsigned int pid;
     unsigned int cpu_time;
     unsigned int period;
