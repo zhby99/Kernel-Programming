@@ -1,5 +1,5 @@
 #define LINUX
-
+#include "mp2_given.h"
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/kthread.h>
-#include "mp2_given.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CS-423 MP2");
@@ -186,10 +185,11 @@ int dispatch_thread(void *data){
         mp2_task_struct *tmp, *n;
     	unsigned long flags;
     	spin_lock_irqsave(&mp2_lock,flags);
+        unsigned int prev = 0xffffffff
     	list_for_each_entry_safe(tmp,n,&task_list, list){
-            if(tmp->period < 0xffffffff && tmp->state == READY){
+            if(tmp->period < prev && tmp->state == READY){
     			sel = tmp;
-    			invPrior = tmp->period;
+    			prev = tmp->period;
     		}
     	}
     	spin_unlock_irqrestore(&mp2_lock,flags);
