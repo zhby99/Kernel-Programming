@@ -86,7 +86,7 @@ ssize_t mp2_write(struct file *file, const char __user *buffer, size_t count, lo
 	unsigned long cpu_time;
 	unsigned int pid;
     buf = (char *)kmalloc(count + 1, GFP_KERNEL);
-    copy_from_user(buf,buffer, count)
+    copy_from_user(buf,buffer, count);
     buf[count] = '\0';
     command = buf[0];
 
