@@ -67,11 +67,11 @@ ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *d
 	}
     spin_unlock_irqrestore(&mp2_lock,flags);
     buf[copied] = '\0';
-	// if(copy_to_user(buffer, buf, copied)){
-	// 	kfree(buf);
-	// 	printk("Error in read\n");
-	// 	return -EINVAL;
-	// }
+	if(copy_to_user(buffer, buf, copied)){
+		kfree(buf);
+		printk("Error in read\n");
+		return -EINVAL;
+	}
     kfree(buf);
     return copied;
 }
