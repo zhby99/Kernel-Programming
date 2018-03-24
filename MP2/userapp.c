@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
     struct timeval t0, start, end;
 
     if (argc != 4) {
-        puts("error in argc");
+        puts("usage: ./userapp [period] [cpu_time] [iterations], where 3 parameters are required!");
         return 1;
     }
 
