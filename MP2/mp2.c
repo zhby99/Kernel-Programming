@@ -120,17 +120,6 @@ static struct file_operations mp2_fops = {
     .write   = mp2_write
 };
 
-// helper
-mp2_task_struct *get_task_by_pid(int pid){
-    mp2_task_struct *tmp;
-    list_for_each_entry(tmp, &task_list, list) {
-        if (tmp->pid == pid) {
-            return tmp;
-        }
-    }
-    return NULL;
-}
-
 /**
  * Doing registration here.
  */
@@ -190,8 +179,8 @@ void set_priority(mp2_task_struct *task, int policy, int priority){
 }
 
 int dispatch_thread(void *data){
-    mp2_task_struct *sel = NULL;
 	while(1) {
+		mp2_task_struct *sel = NULL;
         mp2_task_struct *tmp;
         int prev = INT_MAX;
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -336,18 +325,16 @@ void __exit mp2_exit(void){
        printk("Counter thread has stopped\n");
    mutex_destroy(&task_mutex);
 
-   mp2_task_struct *entry, *temp_entry;
-
-   spin_lock(&mp2_lock);
-   list_for_each_entry_safe(entry, temp_entry, &task_list, list){
-       list_del(&(entry->list));
-       del_timer( &entry->wakeup_timer );
-       kmem_cache_free(mp2_cache, entry);
+   struct list_head *pos, *n;
+   mp2_task_struct* tmp;
+   list_for_each_safe(pos,n,&task_list){
+       tmp = list_entry(pos, mp2_task_struct,list);
+       list_del(&tmp->list);
+       del_timer(&tmp->wakeup_timer);
+       kmem_cache_free(mp2_cache,pos);
    }
 
    kmem_cache_destroy(mp2_cache);
-
-   spin_unlock(&mp2_lock);
    list_del(&task_list);
 
    remove_proc_entry(FILE, proc_directory);
