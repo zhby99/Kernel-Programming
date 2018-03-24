@@ -166,21 +166,22 @@ void de_registration(unsigned int pid){
 	mp2_task_struct *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
-	list_for_each_entry(tmp,&task_list, list){
-		if(tmp->pid == pid){
-			list_del(&tmp->list);
-			del_timer(&tmp->wakeup_timer);
-			kmem_cache_free(mp2_cache,tmp);
-			if(current_mp2_task == tmp){
-				current_mp2_task = NULL;
-				wake_up_process(dispatcher);
-			}
-			spin_unlock_irqrestore(&mp2_lock,flags);
-			printk("task %u de-registered!\n",pid);
-			return;
-		}
-	}
-	spin_unlock_irqrestore(&mp2_lock,flags);
+
+    tmp = get_task_by_pid(pid);
+    if(!tmp) {
+        spin_unlock_irqrestore(&mp2_lock,flags);
+        return;
+    }
+    list_del(&tmp->list);
+    del_timer(&tmp->wakeup_timer);
+    kmem_cache_free(mp2_cache,tmp);
+    if(current_mp2_task == tmp){
+        current_mp2_task = NULL;
+        wake_up_process(dispatcher);
+    }
+    spin_unlock_irqrestore(&mp2_lock,flags);
+    printk("task %u de-registered!\n",pid);
+    return;
 }
 
 void set_priority(mp2_task_struct *task, int policy, int priority){
@@ -231,19 +232,15 @@ int dispatch_thread(void *data){
 	return 0;
 }
 
-void timer_handler(unsigned long task_pid){
+void timer_handler(unsigned long pid){
     mp2_task_struct *wakeup_task, *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&mp2_lock, flags);
-	list_for_each_entry(tmp, &task_list, list){
-		if(tmp->pid == task_pid){
-			wakeup_task = tmp;
-		}
-	}
+	wakeup_task = get_task_by_pid(pid);
 
 	if(!wakeup_task || wakeup_task->task == NULL || wakeup_task->state != SLEEPING) {
 		spin_unlock_irqrestore(&mp2_lock, flags);
-		printk("timer of task %u failed with error.\n", task_pid);
+		printk("Failed with error.\n", task_pid);
 		return;
 	}
 	wakeup_task->state = READY;
@@ -253,15 +250,10 @@ void timer_handler(unsigned long task_pid){
 }
 
 void yielding(unsigned int pid){
-	unsigned long flags;
-    mp2_task_struct *sel, *tmp;
-	spin_lock_irqsave(&mp2_lock, flags);
-    list_for_each_entry(tmp, &task_list, list){
-		if(tmp->pid == pid){
-			sel = tmp;
-		}
-	}
-	spin_unlock_irqrestore(&mp2_lock, flags);
+    
+    mp2_task_struct *sel;
+
+    sel = get_task_by_pid(pid);
 
 	if(jiffies < sel->next){
 			sel->state = SLEEPING;
