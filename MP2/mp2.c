@@ -63,15 +63,15 @@ ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *d
     unsigned long flags;
 	spin_lock_irqsave(&mp2_lock,flags);
     list_for_each_entry(tmp, &task_list, list){
-		copied += sprintf(buf+copied,"%u %u %u %u\n",tmp->pid,tmp->period,tmp->cpu_time, tmp->state);
+		copied += sprintf(buf+copied,"PID:%u PERIOD:%u CPU_TIME:%u STATE:%u\n",tmp->pid,tmp->period,tmp->cpu_time, tmp->state);
 	}
     spin_unlock_irqrestore(&mp2_lock,flags);
     buf[copied] = '\0';
-	// if(copy_to_user(buffer, buf, copied)){
-	// 	kfree(buf);
-	// 	printk("Error in read\n");
-	// 	return -EINVAL;
-	// }
+	if(copy_to_user(buffer, buf, copied)){
+		kfree(buf);
+		printk("Error in read\n");
+		return -EINVAL;
+	}
     kfree(buf);
     return copied;
 }
