@@ -67,11 +67,6 @@ ssize_t mp2_read(struct file *file, char __user *buffer, size_t count, loff_t *d
 	}
     spin_unlock_irqrestore(&mp2_lock,flags);
     buf[copied] = '\0';
-	if(copy_to_user(buffer, buf, copied)){
-		kfree(buf);
-		printk("Error in read\n");
-		return -EINVAL;
-	}
     kfree(buf);
     return copied;
 }
@@ -86,10 +81,6 @@ ssize_t mp2_write(struct file *file, const char __user *buffer, size_t count, lo
 	unsigned long cpu_time;
 	unsigned int pid;
     buf = (char *)kmalloc(count + 1, GFP_KERNEL);
-    if(copy_from_user(buf,buffer, count)){
-		kfree(buf);
-		return -EFAULT;
-	}
     buf[count] = '\0';
     command = buf[0];
 
@@ -250,7 +241,7 @@ void timer_handler(unsigned long pid){
 }
 
 void yielding(unsigned int pid){
-    
+
     mp2_task_struct *sel;
 
     sel = get_task_by_pid(pid);
