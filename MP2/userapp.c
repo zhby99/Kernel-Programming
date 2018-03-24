@@ -3,14 +3,12 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define LEN        1000
-// ./u330 3000 330 10 &
-// ./u660 3000 660 10 &
+
 long factorial(long n) {
         if(n == 0) return 1;
         else return n * factorial(n - 1);
 }
-void do_job(int iteration) {
+void working(int iteration) {
     long rst = 0;
     for(int i = 0; i < iteration; ++i) {
         rst += factorial(1000);
@@ -20,7 +18,6 @@ int main(int argc, char* argv[])
 {
     int loop_cycle = atoi(argv[3]), i, len, offset;
     unsigned int pid = getpid();
-    char buf[LEN];
     struct timeval t0, start, end;
 
     if (argc != 4) {
@@ -30,33 +27,32 @@ int main(int argc, char* argv[])
 
 
     // register process through /proc/mp2/status
-    char cmd_R[100];
-    memset(cmd_R, '\0', 100);
-    sprintf(cmd_R, "echo \"R, %u, %s, %s\" > /proc/%s/%s", pid, argv[1], argv[2], "mp2", "status");
-    system(cmd_R);
+    char register_command[100];
+    memset(register_command, 0, 100);
+    sprintf(register_command, "echo \"R, %u, %s, %s\" > /proc/%s/%s", pid, argv[1], argv[2], "mp2", "status");
+    system(register_command);
 
     gettimeofday(&t0, NULL);
-    char cmd_Y[100];
-    memset(cmd_Y, '\0', 100);
-    sprintf(cmd_Y, "echo \"Y, %u\" > /proc/%s/%s", pid, "mp2", "status");
-    system(cmd_Y);
+    char yield_command[100];
+    memset(yield_command, 0, 100);
+    sprintf(yield_command, "echo \"Y, %u\" > /proc/%s/%s", pid, "mp2", "status");
+    system(yield_command);
 
-    for (i = 0; i < loop_cycle; i ++) {
+    for (i = 0; i < loop_cycle; ++i) {
         gettimeofday(&start, NULL);
-        do_job(60000);
+        working(60000);
         gettimeofday(&end, NULL);
         double te = end.tv_sec * 1000.0 + end.tv_usec / 1000.0 - (t0.tv_sec * 1000.0 + t0.tv_usec / 1000.0);
-double ts = start.tv_sec * 1000.0 + start.tv_usec / 1000.0 - (t0.tv_sec * 1000.0 + t0.tv_usec / 1000.0);
+        double ts = start.tv_sec * 1000.0 + start.tv_usec / 1000.0 - (t0.tv_sec * 1000.0 + t0.tv_usec / 1000.0);
         printf("task: %u, start: %f end: %f, the period is: %s \n",pid, ts, te, argv[1]);
-        char cmd_Y1[100];
-        memset(cmd_Y1, '\0', 100);
-        sprintf(cmd_Y1, "echo \"Y, %u\" > /proc/%s/%s", pid, "mp2", "status");
-        system(cmd_Y1);
+        memset(yield_command, 0, 100);
+        sprintf(yield_command, "echo \"Y, %u\" > /proc/%s/%s", pid, "mp2", "status");
+        system(yield_command);
     }
 
-    char cmd_D[100];
-    memset(cmd_D, '\0', 100);
-    sprintf(cmd_D, "echo \"D, %u\" > /proc/%s/%s", pid, "mp2", "status");
-    system(cmd_D);
+    char de_regis_command[100];
+    memset(de_regis_command, 0, 100);
+    sprintf(de_regis_command, "echo \"D, %u\" > /proc/%s/%s", pid, "mp2", "status");
+    system(de_regis_command);
     return 0;
 }
