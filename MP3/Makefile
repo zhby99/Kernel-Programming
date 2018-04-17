@@ -11,7 +11,7 @@ all: clean modules monitor work
 
 obj-m:= BZHANG70_MP3.o
 
-BZHANG70_MP2-objs = mp3.o
+BZHANG70_MP3-objs = mp3.o
 
 modules:
 	$(MAKE) -C $(KERNEL_SRC) M=$(SUBDIR) modules
