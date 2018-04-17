@@ -27,6 +27,8 @@ MODULE_LICENSE("GPL");
 #define PAGE_NUM    128
 #define DELAY_TIME  50
 
+void registration(unsigned int);
+void unregistration(unsigned int);
 
 typedef struct {
 	struct list_head list;
