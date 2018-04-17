@@ -52,7 +52,7 @@ LIST_HEAD(task_list);
 static ssize_t mp3_read (struct file *file, char __user *buffer, size_t count, loff_t *data){
 	ssize_t copied = 0;
 	char * buf = (char *) kmalloc(count,GFP_KERNEL);
-	struct mp3_task_struct* tmp;
+	mp3_task_struct* tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&lock,flags);
 	list_for_each_entry(tmp, &task_list, list){
@@ -119,7 +119,7 @@ mp3_task_struct *get_task_by_pid(int pid){
 
 void registration(unsigned int pid){
 	unsigned long flags;
-	struct mp3_task_struct* tmp = kmalloc(sizeof(mp3_task_struct),GFP_KERNEL);
+	mp3_task_struct* tmp = kmalloc(sizeof(mp3_task_struct),GFP_KERNEL);
 	tmp->pid = pid;
 	tmp->task = find_task_by_pid(pid);
 	INIT_LIST_HEAD(&tmp->list);
@@ -137,7 +137,7 @@ void registration(unsigned int pid){
 }
 
 void unregistration(unsigned int pid){
-	struct mp3_task_struct *tmp;
+	mp3_task_struct *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&lock,flags);
     tmp = get_task_by_pid(pid);
@@ -158,7 +158,7 @@ void unregistration(unsigned int pid){
 }
 
 void my_wq_function(struct work_struct *work) {
-	struct mp3_task_struct *tmp;
+	mp3_task_struct *tmp;
 	unsigned long flags, min_flt, maj_flt, utime, stime;
 	unsigned long all_min_flt=0, all_maj_flt=0, all_time=0;
 
@@ -289,7 +289,7 @@ static int __init mp3_init(void)
 // mp3_exit - Called when module is unloaded
 static void __exit mp3_exit(void){
 	struct list_head* pos, *n;
-	struct mp3_task_struct *entry, *temp_entry;
+	mp3_task_struct *entry, *temp_entry;
 
 	#ifdef DEBUG
 	printk(KERN_ALERT "MP3 MODULE UNLOADING\n");
