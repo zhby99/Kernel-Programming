@@ -284,7 +284,6 @@ static int __init mp3_init(void)
 
 // mp3_exit - Called when module is unloaded
 static void __exit mp3_exit(void){
-	struct list_head* pos, *n;
 	mp3_task_struct *entry, *temp_entry;
 
 	#ifdef DEBUG
