@@ -137,13 +137,12 @@ void registration(unsigned int pid){
 }
 
 void unregistration(unsigned int pid){
-	struct list_head *pos, *n;
 	struct mp3_task_struct *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&lock,flags);
     tmp = get_task_by_pid(pid);
     if(!tmp) {
-        spin_unlock_irqrestore(&mp2_lock,flags);
+        spin_unlock_irqrestore(&lock,flags);
         return;
     }
     list_del(&tmp->list);
@@ -247,7 +246,7 @@ static int __init mp3_init(void)
         return -ENOMEM;
     }
     // create entry for FILE
-    proc_file = proc_create(FILE, 0666, proc_directory, &mp2_fops);
+    proc_file = proc_create(FILE, 0666, proc_directory, &mp3_fops);
     if (!proc_file) {
         remove_proc_entry(FILE, proc_directory);
         remove_proc_entry(DIRECTORY, NULL);
@@ -275,8 +274,8 @@ static int __init mp3_init(void)
 
 	cdev_init(&mp3_cdev, &mp3_cdev_op);
 	if(cdev_add(&mp3_cdev,mp3_devt,1)){
-		remove_proc_entry("status",reg_dir);
-		remove_proc_entry("mp3",NULL);
+        remove_proc_entry(FILE,proc_directory);
+		remove_proc_entry(DIRECTORY,NULL);
 		cdev_del(&mp3_cdev);
 		vfree(buffer);
 		return -ENOMEM;
