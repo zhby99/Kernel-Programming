@@ -148,7 +148,7 @@ void unregistration(unsigned int pid){
     list_del(&tmp->list);
     kfree(tmp);
     if (list_empty(&task_list)) {
-        timer_cleanup();
+        hrtimer_cancel(& htimer);
         flush_workqueue(my_wq);
         destroy_workqueue(my_wq);
     }
@@ -199,10 +199,6 @@ static void timer_init(void){
 	kt_periode = ktime_set(0, DELAY_TIME*1E6L); //seconds,nanoseconds
 	hrtimer_init (& htimer, CLOCK_REALTIME, HRTIMER_MODE_REL);
 	htimer.function = timer_function;
-}
-
-static void timer_cleanup(void){
-	hrtimer_cancel(& htimer);
 }
 
 
