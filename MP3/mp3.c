@@ -175,6 +175,7 @@ void wq_function(struct work_struct *work) {
 	buffer[cur_len++] = sum_min_flt;
 	buffer[cur_len++] = sum_maj_flt;
 	buffer[cur_len++] = jiffies_to_msecs(cputime_to_jiffies(sum_cpu_time));
+    buffer[cur_len] = -1
 	if(cur_len >= PAGE_NUM * PAGE_SIZE / sizeof(unsigned long)){
 		cur_len = 0;
 		printk("memory buffer is full and it starts over!\n");
