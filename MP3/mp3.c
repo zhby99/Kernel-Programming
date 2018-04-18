@@ -160,22 +160,22 @@ void unregistration(unsigned int pid){
 void my_wq_function(struct work_struct *work) {
 	mp3_task_struct *tmp;
 	unsigned long flags, min_flt, maj_flt, utime, stime;
-	unsigned long all_min_flt=0, all_maj_flt=0, all_time=0;
+	unsigned long sum_min_flt=0, sum_maj_flt=0, sum_cpu_time=0;
 
 	spin_lock_irqsave(&lock, flags);
 	list_for_each_entry(tmp, &task_list, list) {
 		if(get_cpu_use(tmp->pid, &min_flt, &maj_flt, &utime, &stime) == 0) {
-			all_maj_flt = all_maj_flt + maj_flt;
-			all_min_flt = all_min_flt + min_flt;
-			all_time = all_time + utime + stime;
+			sum_maj_flt += maj_flt;
+			sum_min_flt += min_flt;
+			sum_cpu_time += utime + stime;
 		}
 	}
 	spin_unlock_irqrestore(&lock, flags);
 	buffer[cur_len++] = jiffies;
-	buffer[cur_len++] = all_min_flt;
-	buffer[cur_len++] = all_maj_flt;
-	buffer[cur_len++] = jiffies_to_msecs(cputime_to_jiffies(all_time));
-	buffer[cur_len] = -1;
+	buffer[cur_len++] = sum_min_flt;
+	buffer[cur_len++] = sum_maj_flt;
+	buffer[cur_len++] = jiffies_to_msecs(cputime_to_jiffies(sum_cpu_time));
+	// buffer[cur_len] = -1;
 	if(cur_len >= PAGE_NUM * PAGE_SIZE / sizeof(unsigned long)){
 		cur_len = 0;
 		printk("memory buffer is full and it starts over!\n");
