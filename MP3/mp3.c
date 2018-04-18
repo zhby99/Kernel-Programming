@@ -20,108 +20,105 @@
 #include <linux/sched.h>
 #include <asm/uaccess.h>
 
+
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("23");
+MODULE_DESCRIPTION("CS-423 MP3");
 
-#define DIRECTORY   "mp3"
-#define FILE        "status"
-#define PAGE_NUM    128
-#define DELAY_TIME  50
 
-void registration(unsigned int);
-void unregistration(unsigned int);
-
-typedef struct {
+typedef struct mp3_task_struct{
 	struct list_head list;
-	struct task_struct* task;
+	struct task_struct* linux_task;
 	unsigned int pid;
+
 }mp3_task_struct;
 
-
-struct proc_dir_entry *proc_directory, *proc_file;
-
+static struct proc_dir_entry *reg_dir;
+static struct proc_dir_entry *status_entry;
 static struct workqueue_struct *my_wq;
 static spinlock_t lock;
 static unsigned int cur_len = 0;
+static unsigned int BUFFER_LEN = 128*PAGE_SIZE; //(NPAGES * PAGE_SIZE / sizeof(unsigned long))
 static unsigned long * buffer;
+static unsigned long delay_time = 50;
 static struct hrtimer htimer;
 static ktime_t kt_periode;
 static struct cdev mp3_cdev;
 static dev_t mp3_devt;
 LIST_HEAD(task_list);
 
-static ssize_t mp3_read (struct file *file, char __user *buffer, size_t count, loff_t *data){
-	ssize_t copied = 0;
-	char * buf = (char *) kmalloc(count,GFP_KERNEL);
-	mp3_task_struct* tmp;
+void my_wq_function(struct work_struct *work) {
+
+	//printk("work queue job awake\n");
+	struct mp3_task_struct *pos;
+	unsigned long flags, min_flt, maj_flt, utime, stime;
+	unsigned long all_min_flt=0, all_maj_flt=0, all_time=0;
+
+	spin_lock_irqsave(&lock, flags);
+	list_for_each_entry(pos, &task_list, list) {
+		if(get_cpu_use(pos->pid, &min_flt, &maj_flt, &utime, &stime) == 0) {
+			all_maj_flt = all_maj_flt + maj_flt;
+			all_min_flt = all_min_flt + min_flt;
+			all_time = all_time + utime + stime;
+		}
+	}
+	spin_unlock_irqrestore(&lock, flags);
+	buffer[cur_len++] = jiffies;
+	buffer[cur_len++] = all_min_flt;
+	buffer[cur_len++] = all_maj_flt;
+	buffer[cur_len++] = jiffies_to_msecs(cputime_to_jiffies(all_time));
+
+	//marking the end
+	buffer[cur_len] = -1;
+
+	if(cur_len + 4 >= BUFFER_LEN){
+		cur_len = 0;
+		printk("buffer start over\n");
+	}
+
+	kfree(work);
+	//printk("work queue job sleep\n");
+}
+
+
+static enum hrtimer_restart timer_function(struct hrtimer * timer)
+{
+	// @Do your work here.
 	unsigned long flags;
+	struct work_struct* my_work = (struct work_struct*)kmalloc(sizeof(struct work_struct),GFP_KERNEL);
+	INIT_WORK(my_work, my_wq_function);
+
 	spin_lock_irqsave(&lock,flags);
-	list_for_each_entry(tmp, &task_list, list){
-		copied+=sprintf(buf+copied,"PID: %u\n",tmp->pid);
-	}
+	queue_work(my_wq, my_work);
+	//printk("work in queue\n");
 	spin_unlock_irqrestore(&lock,flags);
-	buf[copied] = '\0';
-	if(*data >= copied){
-		kfree(buf);
-		return 0;
-	}
-	if(copy_to_user(buffer, buf, copied)){
-		kfree(buf);
-		printk("Error in read\n");
-		return -EINVAL;
-	}
-	*data+=copied;
-	kfree(buf);
-	return copied;
+
+	hrtimer_forward_now(timer, kt_periode);
+
+	//printk("my_timer_callback called\n");
+	return HRTIMER_RESTART;
 }
 
-static ssize_t mp3_write (struct file *file, const char __user *buffer, size_t count, loff_t *data){
-	char* buf;
-	char command;
-	unsigned int pid;
-	buf = (char *) kmalloc(count,GFP_KERNEL);
-	if(copy_from_user(buf,buffer, count)){
-		kfree(buf);
-		return -EFAULT;
-	}
-	buf[count] = '\0';
-	command = buf[0];
-    switch (command) {
-        case 'R':
-            sscanf(buf,"%c %u",&command,&pid);
-            registration(pid);
-            break;
-        case 'U':
-            sscanf(buf,"%c %u",&command,&pid);
-            unregistration(pid);
-            break;
-        default:
-            printk("invalid command!\n");
-    }
-	kfree(buf);
-	return count;
+static void timer_init(void)
+{
+	kt_periode = ktime_set(0, delay_time*1E6L); //seconds,nanoseconds
+	hrtimer_init (& htimer, CLOCK_REALTIME, HRTIMER_MODE_REL);
+	htimer.function = timer_function;
 }
 
-static const struct file_operations mp3_fops = {
-	.write= mp3_write,
-	.read= mp3_read,
-};
-
-// helper function!
-mp3_task_struct *get_task_by_pid(int pid){
-    mp3_task_struct *tmp;
-    list_for_each_entry(tmp, &task_list, list) {
-        if (tmp->pid == pid) {
-            return tmp;
-        }
-    }
-    return NULL;
+static void timer_cleanup(void)
+{
+	hrtimer_cancel(& htimer);
 }
+
 
 void registration(unsigned int pid){
+	printk("task %u arrived\n",pid);
 	unsigned long flags;
-	mp3_task_struct* tmp = kmalloc(sizeof(mp3_task_struct),GFP_KERNEL);
+	struct mp3_task_struct* tmp = kmalloc(sizeof(mp3_task_struct),GFP_KERNEL);
 	tmp->pid = pid;
-	tmp->task = find_task_by_pid(pid);
+	tmp->linux_task = find_task_by_pid(pid);
+
 	INIT_LIST_HEAD(&tmp->list);
 	spin_lock_irqsave(&lock,flags);
 
@@ -137,68 +134,115 @@ void registration(unsigned int pid){
 }
 
 void unregistration(unsigned int pid){
-	mp3_task_struct *tmp;
+
+	printk("task %u is leaving\n",pid);
+	struct list_head *pos, *n;
+	struct mp3_task_struct *tmp;
 	unsigned long flags;
 	spin_lock_irqsave(&lock,flags);
-    tmp = get_task_by_pid(pid);
-    if(!tmp) {
-        spin_unlock_irqrestore(&lock,flags);
-        return;
-    }
-    list_del(&tmp->list);
-    kfree(tmp);
-    if (list_empty(&task_list)) {
-        hrtimer_cancel(& htimer);
-        flush_workqueue(my_wq);
-        destroy_workqueue(my_wq);
-    }
-    spin_unlock_irqrestore(&lock,flags);
-    printk("task %u unregistered!\n",pid);
+	list_for_each_safe(pos,n,&task_list){
+		tmp = list_entry(pos,struct mp3_task_struct,list);
+		if(tmp->pid == pid){
+			printk("we find you!\n");
+			list_del(&tmp->list);
+			kfree(tmp);
+			if (list_empty(&task_list)) {
+				timer_cleanup();
+				flush_workqueue(my_wq);
+				destroy_workqueue(my_wq);
+			}
+
+			spin_unlock_irqrestore(&lock,flags);
+			printk("task %u de-registered!\n",pid);
+			return;
+		}
+	}
+
+	spin_unlock_irqrestore(&lock,flags);
+	printk("invalid de-registration");
 	return;
 }
 
-void my_wq_function(struct work_struct *work) {
-	mp3_task_struct *tmp;
-	unsigned long flags, min_flt, maj_flt, utime, stime;
-	unsigned long all_min_flt=0, all_maj_flt=0, all_time=0;
+static ssize_t mp3_write (struct file *file, const char __user *buffer, size_t count, loff_t
+*data){
 
-	spin_lock_irqsave(&lock, flags);
-	list_for_each_entry(tmp, &task_list, list) {
-		if(get_cpu_use(tmp->pid, &min_flt, &maj_flt, &utime, &stime) == 0) {
-			all_maj_flt = all_maj_flt + maj_flt;
-			all_min_flt = all_min_flt + min_flt;
-			all_time = all_time + utime + stime;
-		}
+	char* buf;
+	char command;
+	unsigned int pid;
+
+	buf = (char *) kmalloc(count,GFP_KERNEL);
+	if(copy_from_user(buf,buffer, count)){
+		kfree(buf);
+		return -EFAULT;
 	}
-	spin_unlock_irqrestore(&lock, flags);
-	buffer[cur_len++] = jiffies;
-	buffer[cur_len++] = all_min_flt;
-	buffer[cur_len++] = all_maj_flt;
-	buffer[cur_len++] = jiffies_to_msecs(cputime_to_jiffies(all_time));
-	buffer[cur_len] = -1;
-	if(cur_len >= PAGE_NUM * PAGE_SIZE / sizeof(unsigned long)){
-		cur_len = 0;
-		printk("memory buffer is full and it starts over!\n");
+	buf[count] = 0;
+	command = buf[0];
+
+	if(command == 'R'){
+		sscanf(buf,"%c %u",&command,&pid);
+		registration(pid);
 	}
-	kfree(work);
+	else if(command == 'U'){
+		sscanf(buf,"%c %u",&command,&pid);
+		unregistration(pid);
+	}
+	else{
+		printk("invalid command %c\n",command);
+	}
+
+	//printk("command %s\n",buf);
+	kfree(buf);
+
+	return count;
 }
 
+static ssize_t mp3_read (struct file *file, char __user *buffer, size_t count, loff_t *data){
 
-static enum hrtimer_restart timer_function(struct hrtimer * timer){
+	ssize_t copied = 0;
+	char * buf = (char *) kmalloc(count,GFP_KERNEL);
+	struct list_head* pos;
+	struct mp3_task_struct* tmp;
 	unsigned long flags;
-	struct work_struct* my_work = (struct work_struct*)kmalloc(sizeof(struct work_struct),GFP_KERNEL);
-	INIT_WORK(my_work, my_wq_function);
+
 	spin_lock_irqsave(&lock,flags);
-	queue_work(my_wq, my_work);
+	list_for_each(pos,&task_list){
+		tmp = list_entry(pos,struct mp3_task_struct,list);
+		copied+=sprintf(buf+copied,"PID: %u\n",tmp->pid);
+	}
 	spin_unlock_irqrestore(&lock,flags);
-	hrtimer_forward_now(timer, kt_periode);
-	return HRTIMER_RESTART;
+
+	buf[copied] = 0;
+	if(*data >= copied){
+		kfree(buf);
+		return 0;
+	}
+
+	if(copy_to_user(buffer, buf, copied)){
+		kfree(buf);
+		printk("Error in read\n");
+		return -EINVAL;
+	}
+	*data+=copied;
+
+	kfree(buf);
+
+	return copied;
 }
 
-static void timer_init(void){
-	kt_periode = ktime_set(0, DELAY_TIME*1E6L); //seconds,nanoseconds
-	hrtimer_init (& htimer, CLOCK_REALTIME, HRTIMER_MODE_REL);
-	htimer.function = timer_function;
+static const struct file_operations mp3_fops = {
+	.owner = THIS_MODULE,
+	.write= mp3_write,
+	.read= mp3_read,
+};
+
+static int cdev_open(struct inode *inode, struct file *file){
+	printk("cdev opened\n");
+	return 0;
+}
+
+static int cdev_close(struct inode *inode, struct file *file){
+	printk("cdev closed\n");
+	return 0;
 }
 
 
@@ -224,8 +268,9 @@ static int cdev_mmap(struct file *file, struct vm_area_struct *vm) {
 }
 
 static const struct file_operations mp3_cdev_op = {
-    .open    = NULL,
-    .release = NULL,
+    .owner   = THIS_MODULE,
+    .open    = cdev_open,
+    .release = cdev_close, // close
     .mmap    = cdev_mmap,
 };
 
@@ -235,34 +280,34 @@ static int __init mp3_init(void)
 	printk(KERN_ALERT "MP3 MODULE LOADING\n");
 	#endif
 
-    proc_directory = proc_mkdir(DIRECTORY, NULL);
-    if (!proc_directory) {
-        remove_proc_entry(DIRECTORY, NULL);
-        printk(KERN_ALERT "Error: Could not initialize /proc/%s\n", DIRECTORY);
-        return -ENOMEM;
-    }
-    // create entry for FILE
-    proc_file = proc_create(FILE, 0666, proc_directory, &mp3_fops);
-    if (!proc_file) {
-        remove_proc_entry(FILE, proc_directory);
-        remove_proc_entry(DIRECTORY, NULL);
-        printk(KERN_ALERT "Error: Could not initialize /proc/%s/%s\n", DIRECTORY, FILE);
-        return -ENOMEM;
-    }
-
-
-	buffer = (unsigned long*)vmalloc(PAGE_NUM * PAGE_SIZE);
-	if(!buffer){
-		remove_proc_entry(FILE,proc_directory);
-		remove_proc_entry(DIRECTORY,NULL);
+	reg_dir = proc_mkdir("mp3",NULL);
+	if(!reg_dir)
+	{
+		printk(KERN_INFO "directory creation failed\n");
 		return -ENOMEM;
 	}
-    memset(buffer, 0, PAGE_NUM * PAGE_SIZE);
+	printk(KERN_INFO "proc dir created\n");
+
+	status_entry = proc_create("status",0666,reg_dir,&mp3_fops);
+	if(!status_entry)
+	{
+		remove_proc_entry("mp3",NULL);
+		printk(KERN_INFO "proc entry creation failed\n");
+		return -ENOMEM;
+	}
+	printk(KERN_INFO "file created\n");
+
+	buffer = vmalloc(BUFFER_LEN*sizeof(unsigned long));
+	if(!buffer){
+		remove_proc_entry("status",reg_dir);
+		remove_proc_entry("mp3",NULL);
+		return -ENOMEM;
+	}
 	printk(KERN_INFO "virtual memory allocated\n");
 
 	if(alloc_chrdev_region(&mp3_devt, 0, 1, "mp3_cdev") < 0){
-        remove_proc_entry(FILE,proc_directory);
-		remove_proc_entry(DIRECTORY,NULL);
+		remove_proc_entry("status",reg_dir);
+		remove_proc_entry("mp3",NULL);
 		vfree(buffer);
 		return -ENOMEM;
 	}
@@ -270,37 +315,76 @@ static int __init mp3_init(void)
 
 	cdev_init(&mp3_cdev, &mp3_cdev_op);
 	if(cdev_add(&mp3_cdev,mp3_devt,1)){
-        remove_proc_entry(FILE,proc_directory);
-		remove_proc_entry(DIRECTORY,NULL);
+		remove_proc_entry("status",reg_dir);
+		remove_proc_entry("mp3",NULL);
 		cdev_del(&mp3_cdev);
 		vfree(buffer);
 		return -ENOMEM;
 	}
+	printk(KERN_INFO "character device added\n");
+
 	timer_init();
+	printk(KERN_INFO "timer initialized\n");
+
+	/*my_wq = create_workqueue("my_queue");
+	if(!my_wq)
+		printk(KERN_INFO "workqueue creation failed\n");
+	else
+		printk(KERN_INFO "workqueue initialized\n");
+	*/
+
+	//initialize spinlock
 	spin_lock_init(&lock);
+	printk(KERN_INFO "lock initialized\n");
+
 	printk(KERN_ALERT "MP3 MODULE LOADED\n");
 	return 0;
 }
 
 // mp3_exit - Called when module is unloaded
-static void __exit mp3_exit(void){
-	mp3_task_struct *entry, *temp_entry;
+static void __exit mp3_exit(void)
+{
+
+	struct list_head* pos, *n;
+	struct mp3_task_struct* tmp;
 
 	#ifdef DEBUG
 	printk(KERN_ALERT "MP3 MODULE UNLOADING\n");
 	#endif
-    remove_proc_entry(FILE,proc_directory);
-    remove_proc_entry(DIRECTORY,NULL);
+	// Insert your code here ...
 
-    list_for_each_entry_safe(entry, temp_entry, &task_list, list){
-        list_del(&(entry->list));
-        kfree(entry);
-    }
+	remove_proc_entry("status",reg_dir);
+	remove_proc_entry("mp3",NULL);
+
+	list_for_each_safe(pos,n,&task_list){
+		tmp = list_entry(pos,mp3_task_struct,list);
+		//printk(KERN_ALERT "Remove element %d: time %d\n",tmp->pid,tmp->cpu_time);
+		list_del(&tmp->list);
+		kfree(tmp);
+	}
+
 	list_del(&task_list);
+	printk(KERN_INFO "list destroyed\n");
+
+/*
+	timer_cleanup();
+	printk(KERN_INFO "timer destroyed\n");
+
+
+	flush_workqueue(my_wq);
+	destroy_workqueue(my_wq);
+	printk(KERN_INFO "workqueue destroyed\n");
+*/
+
 	cdev_del(&mp3_cdev);
+	printk(KERN_INFO "character device deleted\n");
+
 	unregister_chrdev_region(mp3_devt, 1);
+	printk(KERN_INFO "character device unregistered\n");
+
 	if(buffer)
 		vfree(buffer);
+	printk(KERN_INFO "virtual memory freed\n");
 
 	printk(KERN_ALERT "MP3 MODULE UNLOADED\n");
 }
