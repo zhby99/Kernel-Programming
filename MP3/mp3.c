@@ -157,7 +157,7 @@ void unregistration(unsigned int pid){
 	return;
 }
 
-void my_wq_function(struct work_struct *work) {
+void wq_function(struct work_struct *work) {
 	mp3_task_struct *tmp;
 	unsigned long flags, min_flt, maj_flt, utime, stime;
 	unsigned long sum_min_flt=0, sum_maj_flt=0, sum_cpu_time=0;
@@ -175,7 +175,6 @@ void my_wq_function(struct work_struct *work) {
 	buffer[cur_len++] = sum_min_flt;
 	buffer[cur_len++] = sum_maj_flt;
 	buffer[cur_len++] = jiffies_to_msecs(cputime_to_jiffies(sum_cpu_time));
-	// buffer[cur_len] = -1;
 	if(cur_len >= PAGE_NUM * PAGE_SIZE / sizeof(unsigned long)){
 		cur_len = 0;
 		printk("memory buffer is full and it starts over!\n");
@@ -187,7 +186,7 @@ void my_wq_function(struct work_struct *work) {
 static enum hrtimer_restart timer_function(struct hrtimer * timer){
 	unsigned long flags;
 	struct work_struct* my_work = (struct work_struct*)kmalloc(sizeof(struct work_struct),GFP_KERNEL);
-	INIT_WORK(my_work, my_wq_function);
+	INIT_WORK(my_work, wq_function);
 	spin_lock_irqsave(&lock,flags);
 	queue_work(my_wq, my_work);
 	spin_unlock_irqrestore(&lock,flags);
@@ -196,30 +195,29 @@ static enum hrtimer_restart timer_function(struct hrtimer * timer){
 }
 
 static void timer_init(void){
-	kt_periode = ktime_set(0, DELAY_TIME*1E6L); //seconds,nanoseconds
+	kt_periode = ktime_set(0, DELAY_TIME*1E6L);
 	hrtimer_init (& htimer, CLOCK_REALTIME, HRTIMER_MODE_REL);
 	htimer.function = timer_function;
 }
 
 
 static int cdev_mmap(struct file *file, struct vm_area_struct *vm) {
-
-	unsigned long left_size = vm->vm_end - vm->vm_start;
-	void *buffer_pointer = buffer;
+	unsigned long size = (unsigned long)(vm->vm_end - vm->vm_start);
+	void *pos = buffer;
 	unsigned long start = vm->vm_start;
 
-	while(left_size > 0) {
-		unsigned long pfn = vmalloc_to_pfn(buffer_pointer);
-		unsigned long copy_size = (left_size < PAGE_SIZE)? left_size : PAGE_SIZE;
+	while(size > 0) {
+		unsigned long pfn = vmalloc_to_pfn(pos);
+		unsigned long copy_size = (size < PAGE_SIZE)? size : PAGE_SIZE;
 		int flag = remap_pfn_range(vm, start, pfn, copy_size, PAGE_SHARED);
 		if(flag < 0)
 			return flag;
 
 		start+=PAGE_SIZE;
-		buffer_pointer+=PAGE_SIZE;
-		left_size-=PAGE_SIZE;
+		pos+=PAGE_SIZE;
+		size-=PAGE_SIZE;
 	}
-	printk("dev op finished\n");
+	printk(KERN_INFO "cdev_mmap finished\n");
 	return 0;
 }
 
@@ -258,16 +256,14 @@ static int __init mp3_init(void)
 		return -ENOMEM;
 	}
     memset(buffer, 0, PAGE_NUM * PAGE_SIZE);
-	printk(KERN_INFO "virtual memory allocated\n");
-
-	if(alloc_chrdev_region(&mp3_devt, 0, 1, "mp3_cdev") < 0){
+	printk(KERN_INFO "allocate virtual memory\n");
+	if(alloc_chrdev_region(&mp3_devt, 0, 1, "mp3") < 0){
         remove_proc_entry(FILE,proc_directory);
 		remove_proc_entry(DIRECTORY,NULL);
 		vfree(buffer);
 		return -ENOMEM;
 	}
-	printk(KERN_INFO "character device %u registered\n",mp3_devt);
-
+	printk(KERN_INFO "character device registered\n");
 	cdev_init(&mp3_cdev, &mp3_cdev_op);
 	if(cdev_add(&mp3_cdev,mp3_devt,1)){
         remove_proc_entry(FILE,proc_directory);
