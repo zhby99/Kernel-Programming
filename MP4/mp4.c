@@ -3,11 +3,27 @@
 #include <linux/lsm_hooks.h>
 #include <linux/security.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/err.h>
 #include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/binfmts.h>
 #include "mp4_given.h"
+
+#define cred_label(X) ((X)->security)
+
+static int inode_init_with_dentry(struct dentry *dentry, struct inode *inode){
+	int len, rc, sid;
+	char *context;
+	len = 100;
+    context = kmalloc(len, GFP_KERNEL);
+	rc = inode->i_op->getxattr(dentry, XATTR_NAME_MP4, context, len);
+    len = rc;
+	dput(dentry);
+	context[len] = '\0';
+	sid = __cred_ctx_to_sid(context);
+	return sid;
+}
 
 /**
  * get_inode_sid - Get the inode mp4 security label id
@@ -23,7 +39,9 @@ static int get_inode_sid(struct inode *inode)
 	 * Add your code here
 	 * ...
 	 */
-	return 0;
+	 struct dentry *dentry;
+	 dentry = d_find_alias(inode);
+	 return inode_init_with_dentry(dentry, inode);
 }
 
 /**
@@ -39,7 +57,12 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 	 * Add your code here
 	 * ...
 	 */
-	return 0;
+	 struct inode *inode = bprm->file->f_path.dentry->d_inode;
+	 int sid = get_inode_sid(inode);
+	 if (sid == MP4_TARGET_SID) {
+		 cred_label(bprm->cred)->mp4_flags = MP4_TARGET_SID;
+	 }
+	 return 0;
 }
 
 /**
@@ -49,13 +72,14 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
  * @gfp: the atomicity of the memory allocation
  *
  */
-static int mp4_cred_alloc_blank(struct cred *cred, gfp_t gfp)
-{
+static int mp4_cred_alloc_blank(struct cred *cred, gfp_t gfp){
 	/*
 	 * Add your code here
 	 * ...
 	 */
-	return 0;
+	 cred_label(cred) = (struct mp4_security*)kmalloc(sizeof(struct mp4_security), gfp);
+	 cred_label(cred)->mp4_flags = MP4_NO_ACCESS;
+	 return 0;
 }
 
 
@@ -71,6 +95,8 @@ static void mp4_cred_free(struct cred *cred)
 	 * Add your code here
 	 * ...
 	 */
+	 cred_label(cred) = NULL;
+	 kfree(cred_label(cred));
 }
 
 /**
@@ -84,6 +110,10 @@ static void mp4_cred_free(struct cred *cred)
 static int mp4_cred_prepare(struct cred *new, const struct cred *old,
 			    gfp_t gfp)
 {
+	mp4_cred_alloc_blank(new, gfp);
+	if (cred_label(old)) {
+		cred_label(new)->mp4_flags = cred_label(old)->mp4_flags;
+	}
 	return 0;
 }
 
@@ -108,7 +138,14 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 * Add your code here
 	 * ...
 	 */
-	return 0;
+	 if (current_cred()->mp4_flags == MP4_TARGET_SID) {
+		 *name = kalloc(strlen(XATTR_NAME_MP4) + 1);
+		 strcpy(*name, XATTR_NAME_MP4);
+		 *value = kmalloc(sizeof(int));
+		 **value = MP4_READ_WRITE;
+		 *len = strlen(*name);
+	 }
+	 return 0;
 }
 
 /**

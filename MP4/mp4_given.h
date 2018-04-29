@@ -89,8 +89,8 @@ static inline int mp4_should_skip_path(const char *dir)
 	    !strncmp(dir, "/run", 4) ||
 	    !strncmp(dir, "/lvm", 4) ||
 	    !strncmp(dir, "/conf", 5) ||
-	    !strncmp(pname, "/usr", 4) ||
-	    !strncmp(pname, "/bin", 4) ||
+	    !strncmp(dir, "/usr", 4) ||
+	    !strncmp(dir, "/bin", 4) ||
 	    !strcmp(dir, "/"))
 		return 1;
 
