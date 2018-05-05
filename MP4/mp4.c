@@ -5,12 +5,13 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/err.h>
+#include <uapi/linux/stat.h>
 #include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/binfmts.h>
 #include "mp4_given.h"
 
-#define cred_label(X) ((X)->security)
+#define cred_label(X) ((struct mp4_security*)(X)->security)
 
 static int inode_init_with_dentry(struct dentry *dentry, struct inode *inode){
 	int len, rc, sid;
@@ -41,6 +42,9 @@ static int get_inode_sid(struct inode *inode)
 	 */
 	 struct dentry *dentry;
 	 dentry = d_find_alias(inode);
+	 if (!dentry) {
+		 return -1;
+	 }
 	 return inode_init_with_dentry(dentry, inode);
 }
 
@@ -57,8 +61,11 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 	 * Add your code here
 	 * ...
 	 */
-	 struct inode *inode = bprm->file->f_path.dentry->d_inode;
+	 struct inode *inode = bprm->file->f_inode;
 	 int sid = get_inode_sid(inode);
+	 if (sid == -1) {
+		 return 0;
+	 }
 	 if (sid == MP4_TARGET_SID) {
 		 cred_label(bprm->cred)->mp4_flags = MP4_TARGET_SID;
 	 }
@@ -138,12 +145,24 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 * Add your code here
 	 * ...
 	 */
-	 if (current_cred()->mp4_flags == MP4_TARGET_SID) {
-		 *name = kalloc(strlen(XATTR_NAME_MP4) + 1);
+	 if (!current_cred()) {
+		 return -EOPNOTSUPP;
+	 }
+	 if (!cred_label(current_cred())) {
+		 return -EOPNOTSUPP;
+	 }
+	 if (cred_label(current_cred())->mp4_flags == MP4_TARGET_SID) {
+		 *name = (char *)kalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
 		 strcpy(*name, XATTR_NAME_MP4);
-		 *value = kmalloc(sizeof(int));
-		 **value = MP4_READ_WRITE;
-		 *len = strlen(*name);
+		 if (S_IFDIR(inode->i_mode)) {
+			 *value = (char *)kmalloc(strlen("dir-write") + 1, GFP_KERNEL);
+			 strcpy(*value, "dir-write");
+		 }
+		 else {
+			 *value = (char *)kmalloc(strlen("read-write") + 1, GFP_KERNEL);
+			 strcpy(*value, "read-write");
+		 }
+		 *len = strlen(*value);
 	 }
 	 return 0;
 }
@@ -155,15 +174,109 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
  * @osid: the object's security id
  * @mask: the operation mask
  *
- * returns 0 is access granter, -EACCESS otherwise
+ * returns 0 is access granter, -EACCES otherwise
  *
  */
 static int mp4_has_permission(int ssid, int osid, int mask)
 {
-	/*
-	 * Add your code here
-	 * ...
-	 */
+	// other
+	if (ssid == 0) {
+		if (osid == 0) {
+			if (mask & MAY_ACCESS) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 1 || osid == 2 || osid == 3) {
+			if (mask & MAY_READ) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 4) {
+			if (mask & (MAY_READ | MAY_EXEC)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 5) {
+			if (mask & (MAY_READ | MAY_EXEC | MAY_ACCESS)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else {
+			return -EACCES;
+		}
+	}
+	else if (ssid == 7) {
+		if (osid == 0) {
+				return -EACCES;
+			}
+		}
+		else if (osid == 1) {
+			if (mask & MAY_READ) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 2) {
+			if (mask & (MAY_READ | MAY_WRITE | MAY_APPEND)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 3) {
+			if (mask & (MAY_WRITE | MAY_APPEND)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 4) {
+			if (mask & (MAY_READ | MAY_EXEC)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 5) {
+			if (mask & (MAY_READ | MAY_EXEC | MAY_ACCESS)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 6) {
+			if (mask & (MAY_OPEN | MAY_CHDIR | MAY_READ | MAY_EXEC | MAY_ACCESS)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else {
+			return -EACCES;
+		}
+	}
+	else {
+		return -EACCES;
+	}
 	return 0;
 }
 
@@ -175,7 +288,7 @@ static int mp4_has_permission(int ssid, int osid, int mask)
  *
  * This is the important access check hook
  *
- * returns 0 if access is granted, -EACCESS otherwise
+ * returns 0 if access is granted, -EACCES otherwise
  *
  */
 static int mp4_inode_permission(struct inode *inode, int mask)
@@ -184,7 +297,27 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 * Add your code here
 	 * ...
 	 */
-	return 0;
+	 struct dentry *dentry;
+	 dentry = d_find_alias(inode);
+	 if (!dentry) {
+		 return -EACCES;
+	 }
+	 char *buf = kmalloc(100, GFP_KERNEL);
+	 dentry_path(dentry, buf, 100);
+	 if(mp4_should_skip_path(buf)) {
+		 kfree(buf);
+		 return -EACCES;
+	 }
+	 if (!current_cred()) {
+		 return -EACCES;
+	 }
+	 if (!cred_label(current_cred())) {
+		 return -EACCES;
+	 }
+
+	 int ssid = cred_label(current_cred())->mp4_flags;
+	 int osid = get_inode_sid(inode);
+	 return mp4_has_permission(ssid, osid, mask);
 }
 
 
