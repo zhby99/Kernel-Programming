@@ -11,7 +11,7 @@
 #include <linux/binfmts.h>
 #include "mp4_given.h"
 
-#define cred_label(X) ((struct mp4_security*)(X)->security)
+#define cred_label(X) (struct mp4_security*)((X)->security)
 
 static int inode_init_with_dentry(struct dentry *dentry, struct inode *inode){
 	int len, rc, sid;
@@ -152,7 +152,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 		 return -EOPNOTSUPP;
 	 }
 	 if (cred_label(current_cred())->mp4_flags == MP4_TARGET_SID) {
-		 *name = (char *)kalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
+		 *name = (char *)kmalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
 		 strcpy(*name, XATTR_NAME_MP4);
 		 if (S_ISDIR(inode->i_mode)) {
 			 *value = (char *)kmalloc(strlen("dir-write") + 1, GFP_KERNEL);
