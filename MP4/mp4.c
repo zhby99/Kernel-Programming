@@ -180,7 +180,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 static int mp4_has_permission(int ssid, int osid, int mask)
 {
 	// other
-	if (ssid == 0) {
+	if (ssid == MP4_NO_ACCESS) {
 		if (osid == 0) {
 			if (mask & MAY_ACCESS) {
 				return 0;
@@ -205,19 +205,14 @@ static int mp4_has_permission(int ssid, int osid, int mask)
 				return -EACCES;
 			}
 		}
-		else if (osid == 5) {
-			if (mask & (MAY_READ | MAY_EXEC | MAY_ACCESS)) {
-				return 0;
-			}
-			else {
-				return -EACCES;
-			}
+		else if (osid == 5 || osid == 6) {
+			return 0;
 		}
 		else {
 			return -EACCES;
 		}
 	}
-	else if (ssid == 7) {
+	else if (ssid == MP4_TARGET_SID) {
 		if (osid == 0) {
 				return -EACCES;
 		}
@@ -317,6 +312,9 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode);
+	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
+		 return 0;
+	 }
 	 int permission = mp4_has_permission(ssid, osid, mask);
 	 pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
 	 return permission;
