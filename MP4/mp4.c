@@ -154,7 +154,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 if (cred_label(current_cred())->mp4_flags == MP4_TARGET_SID) {
 		 *name = (char *)kalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
 		 strcpy(*name, XATTR_NAME_MP4);
-		 if (S_IFDIR(inode->i_mode)) {
+		 if (S_ISDIR(inode->i_mode)) {
 			 *value = (char *)kmalloc(strlen("dir-write") + 1, GFP_KERNEL);
 			 strcpy(*value, "dir-write");
 		 }
@@ -220,8 +220,8 @@ static int mp4_has_permission(int ssid, int osid, int mask)
 	else if (ssid == 7) {
 		if (osid == 0) {
 				return -EACCES;
-			}
 		}
+
 		else if (osid == 1) {
 			if (mask & MAY_READ) {
 				return 0;
