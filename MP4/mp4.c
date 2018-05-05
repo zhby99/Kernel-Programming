@@ -11,7 +11,7 @@
 #include <linux/binfmts.h>
 #include "mp4_given.h"
 
-#define cred_label(X) (struct mp4_security*)((X)->security)
+// #define cred_label(X) (struct mp4_security*)((X)->security)
 
 static int inode_init_with_dentry(struct dentry *dentry, struct inode *inode){
 	int len, rc, sid;
@@ -67,7 +67,7 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 		 return 0;
 	 }
 	 if (sid == MP4_TARGET_SID) {
-		 cred_label(bprm->cred)->mp4_flags = MP4_TARGET_SID;
+		 ((struct mp4_security*)(bprm->cred->security))->mp4_flags = MP4_TARGET_SID;
 	 }
 	 return 0;
 }
@@ -84,8 +84,8 @@ static int mp4_cred_alloc_blank(struct cred *cred, gfp_t gfp){
 	 * Add your code here
 	 * ...
 	 */
-	 cred_label(cred) = (struct mp4_security*)kmalloc(sizeof(struct mp4_security), gfp);
-	 cred_label(cred)->mp4_flags = MP4_NO_ACCESS;
+	 (struct mp4_security*)(cred->security) = (struct mp4_security*)kmalloc(sizeof(struct mp4_security), gfp);
+	 (struct mp4_security*)(cred->security)->mp4_flags = MP4_NO_ACCESS;
 	 return 0;
 }
 
@@ -102,8 +102,8 @@ static void mp4_cred_free(struct cred *cred)
 	 * Add your code here
 	 * ...
 	 */
-	 cred_label(cred) = NULL;
-	 kfree(cred_label(cred));
+	 (struct mp4_security*)(cred->security) = NULL;
+	 kfree((struct mp4_security*)(cred->security));
 }
 
 /**
@@ -118,8 +118,8 @@ static int mp4_cred_prepare(struct cred *new, const struct cred *old,
 			    gfp_t gfp)
 {
 	mp4_cred_alloc_blank(new, gfp);
-	if (cred_label(old)) {
-		cred_label(new)->mp4_flags = cred_label(old)->mp4_flags;
+	if ((old)) {
+		(struct mp4_security*)(bew->security)->mp4_flags = (struct mp4_security*)(old->security)->mp4_flags;
 	}
 	return 0;
 }
@@ -148,10 +148,10 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 if (!current_cred()) {
 		 return -EOPNOTSUPP;
 	 }
-	 if (!cred_label(current_cred())) {
+	 if (!(struct mp4_security*)(current_cred()->security)) {
 		 return -EOPNOTSUPP;
 	 }
-	 if (cred_label(current_cred())->mp4_flags == MP4_TARGET_SID) {
+	 if ((struct mp4_security*)(current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
 		 *name = (char *)kmalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
 		 strcpy(*name, XATTR_NAME_MP4);
 		 if (S_ISDIR(inode->i_mode)) {
@@ -311,11 +311,11 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 if (!current_cred()) {
 		 return -EACCES;
 	 }
-	 if (!cred_label(current_cred())) {
+	 if (!(struct mp4_security*)(current_cred()->security)) {
 		 return -EACCES;
 	 }
 
-	 int ssid = cred_label(current_cred())->mp4_flags;
+	 int ssid = (struct mp4_security*)(current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode);
 	 return mp4_has_permission(ssid, osid, mask);
 }
