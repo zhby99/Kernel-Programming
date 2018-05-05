@@ -317,7 +317,9 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode);
-	 return mp4_has_permission(ssid, osid, mask);
+	 int permission = mp4_has_permission(ssid, osid, mask);
+	 pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+	 return permission;
 }
 
 
