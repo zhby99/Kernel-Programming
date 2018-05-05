@@ -118,7 +118,7 @@ static int mp4_cred_prepare(struct cred *new, const struct cred *old,
 			    gfp_t gfp)
 {
 	mp4_cred_alloc_blank(new, gfp);
-	if ((old)) {
+	if ((old) && (old->security)) {
 		((struct mp4_security*)new->security)->mp4_flags = ((struct mp4_security*)old->security)->mp4_flags;
 	}
 	return 0;
