@@ -13,19 +13,6 @@
 
 // #define cred_label(X) (struct mp4_security*)((X)->security)
 
-static int inode_init_with_dentry(struct dentry *dentry, struct inode *inode){
-	int len, rc, sid;
-	char *context;
-	len = 100;
-    context = kmalloc(len, GFP_KERNEL);
-	rc = inode->i_op->getxattr(dentry, XATTR_NAME_MP4, context, len);
-    len = rc;
-	dput(dentry);
-	context[len] = '\0';
-	sid = __cred_ctx_to_sid(context);
-	return sid;
-}
-
 /**
  * get_inode_sid - Get the inode mp4 security label id
  *
@@ -34,18 +21,22 @@ static int inode_init_with_dentry(struct dentry *dentry, struct inode *inode){
  * @return the inode's security id if found.
  *
  */
-static int get_inode_sid(struct inode *inode)
+static int get_inode_sid(struct inode *inode, struct dentry *dentry)
 {
 	/*
 	 * Add your code here
 	 * ...
 	 */
-	 struct dentry *dentry;
-	 dentry = d_find_alias(inode);
-	 if (!dentry) {
-		 return -1;
-	 }
-	 return inode_init_with_dentry(dentry, inode);
+	 int len, rc, sid;
+	 char *context;
+	 len = 100;
+     context = kmalloc(len, GFP_KERNEL);
+	 rc = inode->i_op->getxattr(dentry, XATTR_NAME_MP4, context, len);
+     len = rc;
+	 context[len] = '\0';
+	 sid = __cred_ctx_to_sid(context);
+	 kfree(context);
+	 return sid;
 }
 
 /**
@@ -62,10 +53,11 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 	 * ...
 	 */
 	 struct inode *inode = bprm->file->f_inode;
-	 int sid = get_inode_sid(inode);
-	 if (sid == -1) {
+	 struct dentry *dentry = bprm->file->f_path.dentry;
+	 if(!inode || !dentry) {
 		 return 0;
 	 }
+	 int sid = get_inode_sid(inode, dentry);
 	 if (sid == MP4_TARGET_SID) {
 		 ((struct mp4_security*)(bprm->cred->security))->mp4_flags = MP4_TARGET_SID;
 	 }
@@ -311,7 +303,9 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 }
 
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
-	 int osid = get_inode_sid(inode);
+	 struct dentry *dentry = d_find_alias(inode);
+	 int osid = get_inode_sid(inode, dentry);
+	 dput(dentry);
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
 		 return 0;
 	 }
