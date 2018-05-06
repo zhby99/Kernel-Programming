@@ -52,10 +52,13 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 	 * Add your code here
 	 * ...
 	 */
-	 struct inode *inode = bprm->file->f_inode;
 	 struct dentry *dentry = bprm->file->f_path.dentry;
-	 if(!inode || !dentry) {
+	 if(!dentry) {
 		 return 0;
+	 }
+	 struct inode *inode = d_inode(dentry);
+	 if(!inode) {
+	 	return 0;
 	 }
 	 int sid = get_inode_sid(inode, dentry);
 	 if (sid == MP4_TARGET_SID) {
@@ -287,23 +290,28 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 struct dentry *dentry;
 	 dentry = d_find_alias(inode);
 	 if (!dentry) {
+		 dput(dentry);
 		 return -EACCES;
 	 }
 	 char *buf = kmalloc(100, GFP_KERNEL);
 	 dentry_path(dentry, buf, 100);
 	 if(mp4_should_skip_path(buf)) {
 		 kfree(buf);
+		 dput(dentry);
 		 return -EACCES;
 	 }
 	 if (!current_cred()) {
+		 dput(dentry);
 		 return -EACCES;
 	 }
 	 if (!(struct mp4_security*)(current_cred()->security)) {
+		 dput(dentry);
 		 return -EACCES;
 	 }
 
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode, dentry);
+	 dput(dentry);
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
 		 return 0;
 	 }
