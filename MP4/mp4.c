@@ -52,16 +52,27 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 	 * Add your code here
 	 * ...
 	 */
+	 if(!bprm) {
+		 return 0;
+	 }
 	 struct dentry *dentry = bprm->file->f_path.dentry;
 	 if(!dentry) {
+		 pr_err("Cannot find dentry for bprm");
 		 return 0;
 	 }
 	 struct inode *inode = d_inode(dentry);
 	 if(!inode) {
+		 pr_err("Cannot find inode for bprm");
 	 	return 0;
 	 }
 	 int sid = get_inode_sid(inode, dentry);
 	 if (sid == MP4_TARGET_SID) {
+		 if(!bprm->cred) {
+			 return 0;
+		 }
+		 if(!bprm->cred->security) {
+			 return 0;
+		 }
 		 ((struct mp4_security*)(bprm->cred->security))->mp4_flags = MP4_TARGET_SID;
 	 }
 	 return 0;
