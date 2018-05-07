@@ -75,7 +75,8 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 		 pr_err("Cannot find inode for bprm");
 	 	return 0;
 	 }
-	 int sid = get_inode_sid(inode, dentry);
+	 int sid = MP4_TARGET_SID;
+	 //get_inode_sid(inode, dentry);
 	 if (sid == MP4_TARGET_SID) {
 		 ((struct mp4_security*)(bprm->cred->security))->mp4_flags = MP4_TARGET_SID;
 	 }
@@ -131,6 +132,9 @@ static int mp4_cred_prepare(struct cred *new, const struct cred *old,
 	mp4_cred_alloc_blank(new, gfp);
 	if ((old) && (old->security)) {
 		((struct mp4_security*)new->security)->mp4_flags = ((struct mp4_security*)old->security)->mp4_flags;
+	}
+	else {
+		mp4_cred_alloc_blank(new, gfp);
 	}
 	return 0;
 }
