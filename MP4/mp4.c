@@ -316,7 +316,6 @@ static int mp4_has_permission(int ssid, int osid, int mask)
  */
 static int mp4_inode_permission(struct inode *inode, int mask)
 {
-	return 0;
 	/*
 	 * Add your code here
 	 * ...
