@@ -9,6 +9,7 @@
 #include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/binfmts.h>
+#include <kernel/ratelimit.h>
 #include "mp4_given.h"
 
 // #define cred_label(X) (struct mp4_security*)((X)->security)
@@ -30,7 +31,6 @@ static int get_inode_sid(struct inode *inode, struct dentry *dentry)
 	 if (!inode->i_op->getxattr) {
         return 0;
      }
-	 pr_info("entering get_inode_sid");
 	 int len, rc, sid;
 	 char *context;
 	 len = 100;
@@ -38,9 +38,7 @@ static int get_inode_sid(struct inode *inode, struct dentry *dentry)
 	 if (!context) {
 		 return 0;
 	 }
-	 pr_info("allocating buffer");
 	 rc = inode->i_op->getxattr(dentry, XATTR_NAME_MP4, context, len);
-	 pr_info("successful getting attr");
 	 if (rc == -ERANGE) {
 		 kfree(context);
 		 return 0;
@@ -52,7 +50,6 @@ static int get_inode_sid(struct inode *inode, struct dentry *dentry)
      len = rc;
 	 context[len] = '\0';
 	 sid = __cred_ctx_to_sid(context);
-	 pr_info("successful getting sid");
 	 kfree(context);
 	 return sid;
 }
@@ -71,21 +68,17 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 	 * ...
 	 */
 	 if(!bprm || !bprm->file || !bprm->cred || !bprm->cred->security) {
-		 pr_err("bprm something null!");
 		 return 0;
 	 }
 	 if(bprm->cred_prepared == 1) {
-		 pr_info("bprm->cred_prepared");
 		 return 0;
 	 }
 	 struct dentry *dentry = bprm->file->f_path.dentry;
 	 if(!dentry) {
-		 pr_err("Cannot find dentry for bprm");
 		 return 0;
 	 }
 	 struct inode *inode = d_inode(dentry);
 	 if(!inode) {
-		 pr_err("Cannot find inode for bprm");
 	 	return 0;
 	 }
 	 int sid = get_inode_sid(inode, dentry);
@@ -322,14 +315,11 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 struct dentry *dentry;
 	 dentry = d_find_alias(inode);
 	 if (!dentry) {
-		 pr_err("No dentry!");
 		 dput(dentry);
 		 return -EACCES;
 	 }
-	 pr_info("got dentry!");
 	 char *buf = kmalloc(100, GFP_KERNEL);
 	 if (!buf) {
-		 pr_err("malloc fail!");
 		 dput(dentry);
 		 return -EACCES;
 	 }
@@ -342,26 +332,33 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	// 	 dput(dentry);
 	// 	 return -EACCES;
 	//  }
+	if(printk_ratelimit()) {
+		 pr_info("Before ssid");
+	}
 	 if (!current_cred() || !current_cred()->security) {
-		 pr_err("Null cred or security!");
 		 dput(dentry);
 		 return -EACCES;
 	 }
-
-	 pr_info("before ssid!");
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
-	 pr_info("get ssid!");
 	 int osid = get_inode_sid(inode, dentry);
-	 pr_info("get osid!");
 	 dput(dentry);
+	 if(printk_ratelimit()) {
+ 		 pr_info("After osid");
+ 	}
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
-		 pr_info("Access granted!");
 		 return 0;
 	 }
-	 return 0;
 	 int permission = mp4_has_permission(ssid, osid, mask);
-	 pr_info("get permission result!");
-	 pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+	 if (permission==0) {
+	 	if(printk_ratelimit()) {
+			 pr_info("Accept! ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+		}
+	 }
+	 else {
+		 if(printk_ratelimit()) {
+			 pr_info("Denied! ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+		 }
+	 }
 	 return permission;
 }
 
