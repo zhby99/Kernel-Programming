@@ -325,6 +325,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 }
 	 kfree(buf);
 	 buf = NULL;
+	 return 0;
 	//  dentry_path(dentry, buf, 100);
 	//  if(mp4_should_skip_path(buf)) {
 	// 	 pr_info("skip this path!");
