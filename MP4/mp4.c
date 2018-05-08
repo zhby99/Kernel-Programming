@@ -300,7 +300,6 @@ static int mp4_has_permission(int ssid, int osid, int mask)
 		return -EACCES;
 	}
 	return 0;
-	return 0;
 }
 
 /**
@@ -323,32 +322,42 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 struct dentry *dentry;
 	 dentry = d_find_alias(inode);
 	 if (!dentry) {
+		 pr_err("No dentry!");
 		 dput(dentry);
 		 return -EACCES;
 	 }
+	 pr_info("got dentry!");
 	 char *buf = kmalloc(100, GFP_KERNEL);
+	 if (!buf) {
+		 pr_err("malloc fail!");
+		 dput(dentry);
+		 return -EACCES;
+	 }
 	 dentry_path(dentry, buf, 100);
 	 if(mp4_should_skip_path(buf)) {
+		 pr_info("skip this path!");
 		 kfree(buf);
 		 dput(dentry);
 		 return -EACCES;
 	 }
-	 if (!current_cred()) {
-		 dput(dentry);
-		 return -EACCES;
-	 }
-	 if (!current_cred()->security) {
+	 if (!current_cred() || !current_cred()->security) {
+		 pr_err("Null cred or security!");
 		 dput(dentry);
 		 return -EACCES;
 	 }
 
+	 pr_info("before ssid!");
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
+	 pr_info("get ssid!");
 	 int osid = get_inode_sid(inode, dentry);
+	 pr_info("get osid!");
 	 dput(dentry);
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
+		 pr_info("Access granted!");
 		 return 0;
 	 }
 	 int permission = mp4_has_permission(ssid, osid, mask);
+	 pr_info("get permission result!");
 	 pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
 	 return permission;
 }
