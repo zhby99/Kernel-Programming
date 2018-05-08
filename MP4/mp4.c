@@ -348,11 +348,11 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 
 	 pr_info("before ssid!");
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
-	 return 0;
 	 pr_info("get ssid!");
 	 int osid = get_inode_sid(inode, dentry);
 	 pr_info("get osid!");
 	 dput(dentry);
+	 return 0;
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
 		 pr_info("Access granted!");
 		 return 0;
