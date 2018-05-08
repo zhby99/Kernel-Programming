@@ -172,25 +172,25 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 * Add your code here
 	 * ...
 	 */
-	//  if (!current_cred()) {
-	// 	 return -EOPNOTSUPP;
-	//  }
-	//  if (!(struct mp4_security*)(current_cred()->security)) {
-	// 	 return -EOPNOTSUPP;
-	//  }
-	//  if (((struct mp4_security*)current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
-	// 	 *name = (char *)kmalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
-	// 	 strcpy(*name, XATTR_NAME_MP4);
-	// 	 if (S_ISDIR(inode->i_mode)) {
-	// 		 *value = (char *)kmalloc(strlen("dir-write") + 1, GFP_KERNEL);
-	// 		 strcpy(*value, "dir-write");
-	// 	 }
-	// 	 else {
-	// 		 *value = (char *)kmalloc(strlen("read-write") + 1, GFP_KERNEL);
-	// 		 strcpy(*value, "read-write");
-	// 	 }
-	// 	 *len = strlen(*value);
-	//  }
+	 if (!current_cred()) {
+		 return -EOPNOTSUPP;
+	 }
+	 if (current_cred()->security) {
+		 return -EOPNOTSUPP;
+	 }
+	 if (((struct mp4_security*)current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
+		 *name = (char *)kmalloc(strlen(XATTR_NAME_MP4) + 1, GFP_KERNEL);
+		 strcpy(*name, XATTR_NAME_MP4);
+		 if (S_ISDIR(inode->i_mode)) {
+			 *value = (char *)kmalloc(strlen("dir-write") + 1, GFP_KERNEL);
+			 strcpy(*value, "dir-write");
+		 }
+		 else {
+			 *value = (char *)kmalloc(strlen("read-write") + 1, GFP_KERNEL);
+			 strcpy(*value, "read-write");
+		 }
+		 *len = strlen(*value);
+	 }
 	 return 0;
 }
 
@@ -207,99 +207,99 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 static int mp4_has_permission(int ssid, int osid, int mask)
 {
 	// other
-	// if (ssid == MP4_NO_ACCESS) {
-	// 	if (osid == 0) {
-	// 		if (mask & MAY_ACCESS) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 1 || osid == 2 || osid == 3) {
-	// 		if (mask & MAY_READ) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 4) {
-	// 		if (mask & (MAY_READ | MAY_EXEC)) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 5 || osid == 6) {
-	// 		return 0;
-	// 	}
-	// 	else {
-	// 		return -EACCES;
-	// 	}
-	// }
-	// else if (ssid == MP4_TARGET_SID) {
-	// 	if (osid == 0) {
-	// 			return -EACCES;
-	// 	}
-	//
-	// 	else if (osid == 1) {
-	// 		if (mask & MAY_READ) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 2) {
-	// 		if (mask & (MAY_READ | MAY_WRITE | MAY_APPEND)) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 3) {
-	// 		if (mask & (MAY_WRITE | MAY_APPEND)) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 4) {
-	// 		if (mask & (MAY_READ | MAY_EXEC)) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 5) {
-	// 		if (mask & (MAY_READ | MAY_EXEC | MAY_ACCESS)) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else if (osid == 6) {
-	// 		if (mask & (MAY_OPEN | MAY_CHDIR | MAY_READ | MAY_EXEC | MAY_ACCESS)) {
-	// 			return 0;
-	// 		}
-	// 		else {
-	// 			return -EACCES;
-	// 		}
-	// 	}
-	// 	else {
-	// 		return -EACCES;
-	// 	}
-	// }
-	// else {
-	// 	return -EACCES;
-	// }
-	// return 0;
+	if (ssid == MP4_NO_ACCESS) {
+		if (osid == 0) {
+			if (mask & MAY_ACCESS) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 1 || osid == 2 || osid == 3) {
+			if (mask & MAY_READ) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 4) {
+			if (mask & (MAY_READ | MAY_EXEC)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 5 || osid == 6) {
+			return 0;
+		}
+		else {
+			return -EACCES;
+		}
+	}
+	else if (ssid == MP4_TARGET_SID) {
+		if (osid == 0) {
+				return -EACCES;
+		}
+
+		else if (osid == 1) {
+			if (mask & MAY_READ) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 2) {
+			if (mask & (MAY_READ | MAY_WRITE | MAY_APPEND)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 3) {
+			if (mask & (MAY_WRITE | MAY_APPEND)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 4) {
+			if (mask & (MAY_READ | MAY_EXEC)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 5) {
+			if (mask & (MAY_READ | MAY_EXEC | MAY_ACCESS)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else if (osid == 6) {
+			if (mask & (MAY_OPEN | MAY_CHDIR | MAY_READ | MAY_EXEC | MAY_ACCESS)) {
+				return 0;
+			}
+			else {
+				return -EACCES;
+			}
+		}
+		else {
+			return -EACCES;
+		}
+	}
+	else {
+		return -EACCES;
+	}
+	return 0;
 	return 0;
 }
 
@@ -321,37 +321,37 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 * Add your code here
 	 * ...
 	 */
-	//  struct dentry *dentry;
-	//  dentry = d_find_alias(inode);
-	//  if (!dentry) {
-	// 	 dput(dentry);
-	// 	 return -EACCES;
-	//  }
-	//  char *buf = kmalloc(100, GFP_KERNEL);
-	//  dentry_path(dentry, buf, 100);
-	//  if(mp4_should_skip_path(buf)) {
-	// 	 kfree(buf);
-	// 	 dput(dentry);
-	// 	 return -EACCES;
-	//  }
-	//  if (!current_cred()) {
-	// 	 dput(dentry);
-	// 	 return -EACCES;
-	//  }
-	//  if (!(struct mp4_security*)(current_cred()->security)) {
-	// 	 dput(dentry);
-	// 	 return -EACCES;
-	//  }
-	 //
-	//  int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
-	//  int osid = get_inode_sid(inode, dentry);
-	//  dput(dentry);
-	//  if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
-	// 	 return 0;
-	//  }
-	//  int permission = mp4_has_permission(ssid, osid, mask);
-	//  pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
-	//  return permission;
+	 struct dentry *dentry;
+	 dentry = d_find_alias(inode);
+	 if (!dentry) {
+		 dput(dentry);
+		 return -EACCES;
+	 }
+	 char *buf = kmalloc(100, GFP_KERNEL);
+	 dentry_path(dentry, buf, 100);
+	 if(mp4_should_skip_path(buf)) {
+		 kfree(buf);
+		 dput(dentry);
+		 return -EACCES;
+	 }
+	 if (!current_cred()) {
+		 dput(dentry);
+		 return -EACCES;
+	 }
+	 if (!current_cred()->security) {
+		 dput(dentry);
+		 return -EACCES;
+	 }
+
+	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
+	 int osid = get_inode_sid(inode, dentry);
+	 dput(dentry);
+	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
+		 return 0;
+	 }
+	 int permission = mp4_has_permission(ssid, osid, mask);
+	 pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+	 return permission;
 }
 
 
