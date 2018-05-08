@@ -333,6 +333,8 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 dput(dentry);
 		 return -EACCES;
 	 }
+	 kfree(buf);
+	 buf = NULL;
 	//  dentry_path(dentry, buf, 100);
 	//  if(mp4_should_skip_path(buf)) {
 	// 	 pr_info("skip this path!");
@@ -352,11 +354,11 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 int osid = get_inode_sid(inode, dentry);
 	 pr_info("get osid!");
 	 dput(dentry);
-	 return 0;
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
 		 pr_info("Access granted!");
 		 return 0;
 	 }
+	 return 0;
 	 int permission = mp4_has_permission(ssid, osid, mask);
 	 pr_info("get permission result!");
 	 pr_info("ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
