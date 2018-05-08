@@ -27,21 +27,34 @@ static int get_inode_sid(struct inode *inode, struct dentry *dentry)
 	 * Add your code here
 	 * ...
 	 */
+	 if (!inode->i_op->getxattr) {
+        return 0;
+     }
+	 pr_info("entering get_inode_sid");
 	 int len, rc, sid;
 	 char *context;
 	 len = 100;
      context = kmalloc(len, GFP_KERNEL);
+	 if (!context) {
+		 return 0;
+	 }
+	 pr_info("allocating buffer");
 	 rc = inode->i_op->getxattr(dentry, XATTR_NAME_MP4, context, len);
-     len = rc;
-	 if (rc != 0) {
-		 pr_err("get inode sid failed!");
-		 return -1;
-	 }
-	 else {
-		 sid = __cred_ctx_to_sid(context);
+	 pr_info("successful getting attr");
+	 if (rc == -ERANGE) {
 		 kfree(context);
-		 return sid;
+		 return 0;
 	 }
+	 if (rc < 0) {
+		 kfree(context);
+		 return 0;
+	 }
+     len = rc;
+	 context[len] = '\0';
+	 sid = __cred_ctx_to_sid(context);
+	 pr_info("successful getting sid");
+	 kfree(context);
+	 return sid;
 }
 
 /**
@@ -75,8 +88,7 @@ static int mp4_bprm_set_creds(struct linux_binprm *bprm)
 		 pr_err("Cannot find inode for bprm");
 	 	return 0;
 	 }
-	 int sid = MP4_TARGET_SID;
-	 //get_inode_sid(inode, dentry);
+	 int sid = get_inode_sid(inode, dentry);
 	 if (sid == MP4_TARGET_SID) {
 		 ((struct mp4_security*)(bprm->cred->security))->mp4_flags = MP4_TARGET_SID;
 	 }
