@@ -333,13 +333,13 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 dput(dentry);
 		 return -EACCES;
 	 }
-	 dentry_path(dentry, buf, 100);
-	 if(mp4_should_skip_path(buf)) {
-		 pr_info("skip this path!");
-		 kfree(buf);
-		 dput(dentry);
-		 return -EACCES;
-	 }
+	//  dentry_path(dentry, buf, 100);
+	//  if(mp4_should_skip_path(buf)) {
+	// 	 pr_info("skip this path!");
+	// 	 kfree(buf);
+	// 	 dput(dentry);
+	// 	 return -EACCES;
+	//  }
 	 if (!current_cred() || !current_cred()->security) {
 		 pr_err("Null cred or security!");
 		 dput(dentry);
@@ -348,6 +348,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 
 	 pr_info("before ssid!");
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
+	 return 0;
 	 pr_info("get ssid!");
 	 int osid = get_inode_sid(inode, dentry);
 	 pr_info("get osid!");
