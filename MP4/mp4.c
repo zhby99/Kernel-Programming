@@ -325,7 +325,6 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 }
 	 kfree(buf);
 	 buf = NULL;
-	 return 0;
 	//  dentry_path(dentry, buf, 100);
 	//  if(mp4_should_skip_path(buf)) {
 	// 	 pr_info("skip this path!");
@@ -343,6 +342,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode, dentry);
 	 dput(dentry);
+	 return 0;
 	 if(printk_ratelimit()) {
  		 pr_info("After osid");
  	}
