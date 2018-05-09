@@ -165,10 +165,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 * Add your code here
 	 * ...
 	 */
-	 if (!current_cred()) {
-		 return -EOPNOTSUPP;
-	 }
-	 if (current_cred()->security) {
+	 if (!current_cred() || current_cred()->security) {
 		 return -EOPNOTSUPP;
 	 }
 	 if (((struct mp4_security*)current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
@@ -356,10 +353,10 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 if(printk_ratelimit()) {
  		 pr_info("After osid");
  	}
+	return 0;
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
 		 return 0;
 	 }
-	 return 0;
 	 int permission = mp4_has_permission(ssid, osid, mask);
 	 if (permission==0) {
 	 	if(printk_ratelimit()) {
