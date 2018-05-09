@@ -168,18 +168,18 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 if (!current_cred() || current_cred()->security) {
 		 return -EOPNOTSUPP;
 	 }
-	 char *_value;
+	 char *buffer;
 	 if (((struct mp4_security*)current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
 		*name = XATTR_NAME_MP4;
 		if (S_ISREG(inode->i_mode)) {
-			_value = "read-write";
+			buffer = "read-write";
 		} else if (S_ISDIR(inode->i_mode)) {
-			_value = "dir-write";
+			buffer = "dir-write";
 		} else {
-			_value = ""; // behavior not specified.
+			buffer = ""; // behavior not specified.
 		}
-		*value = kstrdup(_value, GFP_NOFS);
-		*len = strlen(_value);
+		*value = kstrdup(buffer, GFP_NOFS);
+		*len = strlen(buffer);
 	}
 	 return 0;
 }
@@ -204,7 +204,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
  	if (ssid == MP4_TARGET_SID) {
  		if (osid == MP4_NO_ACCESS) {
  			if (mask & MAY_ACCESS){
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			} else {
  				return 0;
  			}
@@ -212,33 +212,33 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
  			if (mask & MAY_READ) {
  				return 0;
  			} else {
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			}
  		} else if (osid == MP4_READ_WRITE) {
  			if (mask & (MAY_READ|MAY_WRITE|MAY_APPEND)) {
  				return 0;
  			} else {
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			}
  		} else if (osid == MP4_WRITE_OBJ) {
  			if (mask & MAY_READ) {
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			} else if (mask & (MAY_WRITE|MAY_APPEND)) {
  				return 0;
  			} else {
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			}
  		} else if (osid == MP4_EXEC_OBJ) {
  			if (mask & (MAY_READ|MAY_EXEC)) {
  				return 0;
  			} else {
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			}
  		} else if (osid == MP4_READ_DIR) {
  			if (mask & (MAY_READ|MAY_EXEC|MAY_ACCESS)) {
  				return 0;
  			} else {
- 				goto permission_denied;
+ 				pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  			}
  		} else if (osid == MP4_RW_DIR) {
  			return 0;
@@ -251,25 +251,25 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
  				if (mask & MAY_READ) {
  					return 0;
  				} else {
- 					goto permission_denied;
+ 					pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  				}
  			} else if (osid == MP4_READ_WRITE) {
  				if (mask & (MAY_READ)) {
  					return 0;
  				} else {
- 					goto permission_denied;
+ 					pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  				}
  			} else if (osid == MP4_WRITE_OBJ) {
  				if (mask & MAY_READ) {
  					return 0;
  				} else {
- 					goto permission_denied;
+ 					pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  				}
  			} else if (osid == MP4_EXEC_OBJ) {
  				if (mask & (MAY_READ|MAY_EXEC)) {
  					return 0;
  				} else {
- 					goto permission_denied;
+ 					pr_info("Denied for ssid %d, osid %d and mask %d\n", ssid, osid, mask);return -EACCES;
  				}
  			}
  		} else if (S_ISDIR(inode->i_mode)) {
@@ -282,11 +282,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 
  	return 0;
 
- permission_denied:
- 	// if (printk_ratelimit()) {
- 	pr_info(pr_fmt("Permission denied for ssid %d, osid %d and mask %d\n"), ssid, osid, mask);
- 	// }
- 	return -EACCES;
+
  }
 
 
