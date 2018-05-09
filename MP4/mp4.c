@@ -336,7 +336,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 kfree(buf);
 		 buf = NULL;
 		 dput(dentry);
-		 return -EACCES;
+		 return 0;
 	 }
 	 kfree(buf);
 	 buf = NULL;
