@@ -232,7 +232,7 @@ static int mp4_has_permission(int ssid, int osid, int mask)
 	else if (ssid == MP4_TARGET_SID) {
 		if (osid == 0) {
 			if (mask & MAY_ACCESS){
-				return -EACCes;
+				return -EACCES;
 			} else {
 				return 0;
 			}
