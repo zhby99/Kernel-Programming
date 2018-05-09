@@ -309,6 +309,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 * Add your code here
 	 * ...
 	 */
+	 return 0;
 	 if (!inode) {
 		 return -EACCES;
 	 }
