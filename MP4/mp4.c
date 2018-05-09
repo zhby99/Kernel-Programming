@@ -332,7 +332,9 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 return -EACCES;
 	 }
 	 if(mp4_should_skip_path(ret)) {
-		 pr_info("skip this path!");
+		 if(printk_ratelimit()) {
+			 pr_info("skip this path : %s\n", ret);
+		 }
 		 kfree(buf);
 		 buf = NULL;
 		 dput(dentry);
@@ -351,10 +353,10 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 return 0;
 	 }
 	 dput(dentry);
-	 return 0;
 	 if(printk_ratelimit()) {
-	 	 pr_err("ssid: %d, osid: %d, mask: %d\n", ssid, osid, mask);
+	 	 pr_info("ssid: %d, osid: %d, mask: %d\n", ssid, osid, mask);
 	 }
+	 return 0;
 	 int permission = mp4_has_permission(ssid, osid, mask);
 
 	 if (permission==0) {
