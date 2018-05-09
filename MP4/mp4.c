@@ -231,7 +231,12 @@ static int mp4_has_permission(int ssid, int osid, int mask)
 	}
 	else if (ssid == MP4_TARGET_SID) {
 		if (osid == 0) {
-				return -EACCES;
+			if (mask & MAY_ACCESS){
+				return -EACCes;
+			} else {
+				return 0;
+			}
+
 		}
 
 		else if (osid == 1) {
@@ -251,7 +256,10 @@ static int mp4_has_permission(int ssid, int osid, int mask)
 			}
 		}
 		else if (osid == 3) {
-			if (mask & (MAY_WRITE | MAY_APPEND)) {
+			if(mask & (MAY_READ)) {
+				return -EACCES;
+			}
+			else if (mask & (MAY_WRITE | MAY_APPEND)) {
 				return 0;
 			}
 			else {
