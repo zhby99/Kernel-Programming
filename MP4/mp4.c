@@ -33,7 +33,7 @@ static int get_inode_sid(struct inode *inode, struct dentry *dentry)
      }
 	 int len, rc, sid;
 	 char *context;
-	 len = 256;
+	 len = 100;
      context = kmalloc(len, GFP_KERNEL);
 	 if (!context) {
 		 return 0;
