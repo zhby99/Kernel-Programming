@@ -351,6 +351,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 return 0;
 	 }
 	 dput(dentry);
+	 return 0;
 	 if(printk_ratelimit()) {
 	 	 pr_err("ssid: %d, osid: %d, mask: %d\n", ssid, osid, mask);
 	 }
