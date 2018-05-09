@@ -349,14 +349,14 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 }
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode, dentry);
-	 dput(dentry);
 	 if(printk_ratelimit()) {
  		 pr_info("After osid");
- 	}
-	return 0;
+ 	 }
 	 if (ssid == MP4_TARGET_SID && S_ISDIR(inode->i_mode)){
+		 dput(dentry);
 		 return 0;
 	 }
+	 dput(dentry);
 	 int permission = mp4_has_permission(ssid, osid, mask);
 	 if (permission==0) {
 	 	if(printk_ratelimit()) {
