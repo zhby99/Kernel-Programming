@@ -316,12 +316,12 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 dentry = d_find_alias(inode);
 	 if (!dentry) {
 		 dput(dentry);
-		 return -EACCES;
+		 return 0;
 	 }
 	 char *buf = (char *)kmalloc(4096, GFP_KERNEL);
 	 if (!buf) {
 		 dput(dentry);
-		 return -EACCES;
+		 return 0;
 	 }
 
 	 char *ret = dentry_path_raw(dentry, buf, 4096);
@@ -329,7 +329,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 kfree(buf);
 		 buf = NULL;
 		 dput(dentry);
-		 return -EACCES;
+		 return 0;
 	 }
 	 if(mp4_should_skip_path(ret)) {
 		 if(printk_ratelimit()) {
@@ -344,7 +344,7 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 	 buf = NULL;
 	 if (!current_cred() || !current_cred()->security) {
 		 dput(dentry);
-		 return -EACCES;
+		 return 0;
 	 }
 	 int ssid = ((struct mp4_security*)current_cred()->security)->mp4_flags;
 	 int osid = get_inode_sid(inode, dentry);
