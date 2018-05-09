@@ -170,7 +170,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 }
 	 if (((struct mp4_security*)current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
 		 *name = (char *)kmalloc(strlen(XATTR_MP4_SUFFIX) + 1, GFP_KERNEL);
-		 strcpy(*name, XATTR_NAME_MP4);
+		 strcpy(*name, XATTR_MP4_SUFFIX);
 		 if (S_ISDIR(inode->i_mode)) {
 			 *value = (char *)kmalloc(strlen("dir-write") + 1, GFP_KERNEL);
 			 strcpy(*value, "dir-write");
