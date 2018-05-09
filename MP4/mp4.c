@@ -33,7 +33,7 @@ static int get_inode_sid(struct inode *inode, struct dentry *dentry)
      }
 	 int len, rc, sid;
 	 char *context;
-	 len = 100;
+	 len = 256;
      context = kmalloc(len, GFP_KERNEL);
 	 if (!context) {
 		 return 0;
@@ -351,15 +351,19 @@ static int mp4_inode_permission(struct inode *inode, int mask)
 		 return 0;
 	 }
 	 dput(dentry);
+	 if(printk_ratelimit()) {
+	 	 pr_err("ssid: %d, osid: %d, mask: %d\n", ssid, osid, mask);
+	 }
 	 int permission = mp4_has_permission(ssid, osid, mask);
+
 	 if (permission==0) {
 	 	if(printk_ratelimit()) {
-			 pr_info("Accept! ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+			 pr_info("Accept! ssid: %d, osid: %d, mask: %d\n", ssid, osid, mask);
 		}
 	 }
 	 else {
 		 if(printk_ratelimit()) {
-			 pr_info("Denied! ssid: %d, osid: %d, mask: %d", ssid, osid, mask);
+			 pr_info("Denied! ssid: %d, osid: %d, mask: %d\n", ssid, osid, mask);
 		 }
 	 }
 	 return permission;
