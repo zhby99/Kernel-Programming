@@ -168,6 +168,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 	 if (!current_cred() || current_cred()->security) {
 		 return -EOPNOTSUPP;
 	 }
+	 char *_value;
 	 if (((struct mp4_security*)current_cred()->security)->mp4_flags == MP4_TARGET_SID) {
 		*name = XATTR_NAME_MP4;
 		if (S_ISREG(inode->i_mode)) {
