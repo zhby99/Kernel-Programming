@@ -176,7 +176,7 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
 		} else if (S_ISDIR(inode->i_mode)) {
 			buffer = "dir-write";
 		} else {
-			buffer = ""; // behavior not specified.
+			buffer = "";
 		}
 		*value = kstrdup(buffer, GFP_NOFS);
 		*len = strlen(buffer);
@@ -196,11 +196,6 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
  */
  static int mp4_has_permission(int ssid, int osid, int mask, struct inode *inode)
  {
- 	if (ssid != 0 || osid != 0) {
- 		if (printk_ratelimit()) {
- 			pr_info("mp4 Permission check started for ssid %d, osid %d and mask %d\n", ssid, osid, mask);
- 		}
- 	}
  	if (ssid == MP4_TARGET_SID) {
  		if (osid == MP4_NO_ACCESS) {
  			if (mask & MAY_ACCESS){
@@ -273,9 +268,8 @@ static int mp4_inode_init_security(struct inode *inode, struct inode *dir,
  				}
  			}
  		} else if (S_ISDIR(inode->i_mode)) {
- 			return 0; // grant access.
+ 			return 0;
  		} else {
- 			// Behavior not specified. Grant access.
  			return 0;
  		}
  	}
